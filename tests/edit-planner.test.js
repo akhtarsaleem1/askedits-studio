@@ -13,7 +13,7 @@ import {
 } from "../src/shared/edit-planner.js"
 
 const media = { width: 1920, height: 1080, durationSec: 20, hasAudio: true }
-test("all six templates produce bounded, reproducible edit decisions", () => {
+test("all templates produce bounded, reproducible edit decisions", () => {
   for (const template of EDIT_TEMPLATES) {
     const plan = buildEditPlan({
       media,

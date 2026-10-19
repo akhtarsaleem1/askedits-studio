@@ -1,4 +1,10 @@
 import { defaultEditSettings, getEditTemplate } from "./edit-templates.js"
+import {
+  normalizeVisualSettings,
+  transitionDuration,
+  kineticCaptions,
+  buildVisualTracks
+} from "./visual-plan.js"
 
 const fail = (message) => {
   throw Object.assign(new Error(message), { statusCode: 400 })
@@ -64,7 +70,7 @@ export function normalizeEditSettings(input = {}, media = {}) {
   settings.captionStyle = option(
     input.captionStyle,
     defaults.captionStyle,
-    ["bold", "clean", "minimal"],
+    ["bold", "clean", "minimal", "kinetic"],
     "caption style"
   )
   settings.music = option(
@@ -147,6 +153,10 @@ export function normalizeEditSettings(input = {}, media = {}) {
       })
       .filter((caption) => caption.text)
   }
+  Object.assign(
+    settings,
+    normalizeVisualSettings(input, defaults, sourceDuration)
+  )
   settings.preview = input.preview === true
   return settings
 }
@@ -226,7 +236,7 @@ export function transcriptCaptions(transcript, style = "bold") {
   if (transcript?.words?.length) {
     const groups = []
     let current = []
-    const limit = style === "bold" ? 4 : 9
+    const limit = style === "kinetic" ? 1 : style === "bold" ? 4 : 9
     for (let i = 0; i < transcript.words.length; i++) {
       const word = transcript.words[i]
       current.push(word)
@@ -294,10 +304,12 @@ export function buildEditPlan({
   settings: input,
   silence = {},
   transcript = null,
-  hasCustomMusic = false
+  hasCustomMusic = false,
+  visualAssets = []
 }) {
   const settings = normalizeEditSettings(input, media)
   const template = getEditTemplate(settings.templateId)
+  const transitionSeconds = transitionDuration(settings, template)
   const warnings = []
   if (settings.music === "custom" && !hasCustomMusic)
     fail("Upload a music track before choosing custom music.")
@@ -310,7 +322,7 @@ export function buildEditPlan({
       template.shotSeconds *
       { gentle: 1.35, balanced: 1, punchy: 0.7 }[settings.pace]
     const count = Math.min(12, Math.max(1, Math.ceil(target / shot)))
-    const transition = Math.min(template.transition, target / count / 4)
+    const transition = Math.min(transitionSeconds, target / count / 4)
     const length = Math.min(range, (target + transition * (count - 1)) / count)
     segments = Array.from({ length: count }, (_, i) => {
       const startSec =
@@ -341,7 +353,7 @@ export function buildEditPlan({
     if (outputCursor >= target - 0.035) break
     const overlap = timed.length
       ? Math.min(
-          template.transition,
+          transitionSeconds,
           (item.endSec - item.startSec) / 4,
           (timed.at(-1).endSec - timed.at(-1).startSec) / 4
         )
@@ -387,7 +399,13 @@ export function buildEditPlan({
     settings.manualCaptions ??
     transcriptCaptions(transcript, settings.captionStyle)
   const captions = settings.captions
-    ? remapCaptions(sourceCaptions, timed, outputCursor)
+    ? remapCaptions(
+        settings.captionStyle === "kinetic"
+          ? kineticCaptions(sourceCaptions)
+          : sourceCaptions,
+        timed,
+        outputCursor
+      )
     : []
   if (settings.captions && !captions.length)
     warnings.push(
@@ -398,6 +416,13 @@ export function buildEditPlan({
       "This source has no audio. A silent audio track or your selected music will be added."
     )
   const keptDuration = timed.reduce((sum, s) => sum + s.endSec - s.startSec, 0)
+  const visualTracks = buildVisualTracks(
+    settings,
+    timed,
+    outputCursor,
+    visualAssets,
+    warnings
+  )
   return {
     schemaVersion: 2,
     templateId: template.id,
@@ -408,13 +433,16 @@ export function buildEditPlan({
     captions,
     sourceCaptions,
     warnings,
+    ...visualTracks,
     summary: {
       sourceDurationSec: round(range),
       outputDurationSec: round(outputCursor),
       removedSeconds: round(Math.max(0, range - keptDuration)),
       shotCount: timed.length,
       captionCount: captions.length,
-      transitionCount: timed.filter((s) => s.transitionSec > 0).length
+      transitionCount: timed.filter((s) => s.transitionSec > 0).length,
+      brollCount: visualTracks.visuals.length,
+      soundEffectCount: visualTracks.sfx.length
     }
   }
 }

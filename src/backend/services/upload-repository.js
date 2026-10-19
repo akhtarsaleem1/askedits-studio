@@ -105,6 +105,7 @@ export function serializeAssetRecord(record) {
     warnings: record.warnings ?? [],
     music: record.music ? { originalName: record.music.originalName, durationSec: record.music.durationSec } : null,
     draftSettings: record.draftSettings ?? null,
+    visualAssets: (record.visualAssets ?? []).map(({id,originalName,kind,width,height,durationSec,source})=>({id,originalName,kind,width,height,durationSec,source,thumbnail:"/api/studio/"+record.assetId+"/visuals/"+id+"/thumbnail"})),
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     previewUrls: assetUrls,

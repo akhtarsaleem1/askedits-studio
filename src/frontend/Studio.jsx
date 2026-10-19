@@ -259,12 +259,14 @@ export default function Studio() {
       setAsset(data.asset)
       setSourceName(data.asset.originalName)
       setSuggestions(data.suggestions)
-      setSettings(
-        data.asset.draftSettings ?? {
-          ...blankSettings(),
+      setSettings({
+        ...defaultEditSettings(
+          data.asset.draftSettings?.templateId ?? "creator-punch"
+        ),
+        ...(data.asset.draftSettings ?? {
           endSec: data.asset.media?.durationSec ?? null
-        }
-      )
+        })
+      })
       const history = [...(data.asset.renders ?? [])].reverse()
       setRenderHistory(history.filter((item) => item.status === "ready"))
       const latest =
@@ -490,7 +492,8 @@ export default function Studio() {
       ...defaults,
       startSec: previous.startSec,
       endSec: previous.endSec,
-      manualCaptions: previous.manualCaptions
+      manualCaptions: previous.manualCaptions,
+      visuals: previous.visuals ?? []
     }))
     setNotice("")
   }

@@ -6,6 +6,13 @@ import { getEditTemplate } from "../../shared/edit-templates.js"
 import { runCommand } from "../utils/process-runner.js"
 import { createSoundtrack } from "./soundtrack-service.js"
 import { getFFmpegStatus } from "./ffmpeg-runtime.js"
+import {
+  even,
+  presenterBox,
+  graphicsEvents,
+  createEffectsTrack,
+  composeExplainerVideo
+} from "./explainer-effects.js"
 
 export async function readOptionalJson(filePath) {
   try {
@@ -20,7 +27,8 @@ export async function planTemplateEdit(record, settings) {
     settings,
     silence: (await readOptionalJson(record.paths.silenceDetectionFile)) ?? {},
     transcript: await readOptionalJson(record.paths.transcriptFile),
-    hasCustomMusic: Boolean(record.music?.path)
+    hasCustomMusic: Boolean(record.music?.path),
+    visualAssets: record.visualAssets ?? []
   })
 }
 const n = (value) => Number(value).toFixed(4)
@@ -38,10 +46,12 @@ const assTime = (value) => {
 }
 export function makeAssCaptions(plan) {
   const { width, height } = plan.dimensions
-  const bold = plan.settings.captionStyle === "bold"
+  const kinetic = plan.settings.captionStyle === "kinetic"
+  const bold = plan.settings.captionStyle === "bold" || kinetic
   const minimal = plan.settings.captionStyle === "minimal"
   const size = Math.round(
-    Math.min(width, height) * (bold ? 0.065 : minimal ? 0.04 : 0.048)
+    Math.min(width, height) *
+      (kinetic ? 0.085 : bold ? 0.065 : minimal ? 0.04 : 0.048)
   )
   const color = plan.settings.captionColor.slice(1)
   const highlight =
@@ -78,6 +88,20 @@ export function makeAssCaptions(plan) {
             highlight +
             "}"
           : "{\\fad(80,80)\\1c" + highlight + "}"
+        const position =
+          plan.settings.captionPosition === "middle"
+            ? "{\\an5\\pos(" +
+              Math.round(width / 2) +
+              "," +
+              Math.round(height * 0.545) +
+              ")}"
+            : plan.settings.captionPosition === "upper"
+              ? "{\\an8\\pos(" +
+                Math.round(width / 2) +
+                "," +
+                Math.round(height * 0.1) +
+                ")}"
+              : ""
         return (
           "Dialogue: 0," +
           assTime(caption.startSec) +
@@ -85,18 +109,29 @@ export function makeAssCaptions(plan) {
           assTime(caption.endSec) +
           ",Default,,0,0,0,," +
           tag +
+          position +
           text +
           "\n"
         )
       })
-      .join("")
+      .join("") +
+    graphicsEvents(plan)
   )
 }
 export function buildTemplateFilterGraph(
   plan,
-  { hasAudio, musicInput = null, assName = null }
+  {
+    hasAudio,
+    musicInput = null,
+    assName = null,
+    visualInputs = [],
+    sfxInput = null
+  }
 ) {
-  const { width: w, height: h } = plan.dimensions
+  const { width: outputW, height: outputH } = plan.dimensions
+  const box = presenterBox(plan)
+  const w = plan.settings.layout === "presenter" ? box.width : outputW
+  const h = plan.settings.layout === "presenter" ? box.height : outputH
   const template = getEditTemplate(plan.templateId)
   const segments = plan.segments
   const graph = []
@@ -241,7 +276,11 @@ export function buildTemplateFilterGraph(
           v +
           "][v" +
           i +
-          "]xfade=transition=fade:duration=" +
+          "]xfade=transition=" +
+          ({ slide: "slideleft", wipe: "wipeleft", flash: "fadewhite" }[
+            plan.settings.transition
+          ] ?? "fade") +
+          ":duration=" +
           n(shot.transitionSec) +
           ":offset=" +
           n(shot.outputStartSec) +
@@ -281,6 +320,7 @@ export function buildTemplateFilterGraph(
     a = "ax" + i
   }
   const duration = plan.summary.outputDurationSec
+  v = composeExplainerVideo(graph, plan, v, visualInputs)
   const fade = Math.min(template.kind === "montage" ? 0.35 : 0.08, duration / 4)
   graph.push(
     "[" +
@@ -333,6 +373,23 @@ export function buildTemplateFilterGraph(
         "[voice][music]amix=inputs=2:duration=first:normalize=0,alimiter=limit=.95[aout]"
       )
   } else graph.push("[voice]alimiter=limit=.95[aout]")
+  if (sfxInput !== null) {
+    // Mix effects after music ducking so transients remain audible over the bed.
+    const last = graph.pop()
+    graph.push(last.replace("[aout]", "[mixed]"))
+    graph.push(
+      "[" +
+        sfxInput +
+        ":a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=" +
+        n(plan.settings.sfxVolume) +
+        ",apad,atrim=duration=" +
+        n(duration) +
+        "[effects]"
+    )
+    graph.push(
+      "[mixed][effects]amix=inputs=2:duration=first:normalize=0,alimiter=limit=.95[aout]"
+    )
+  }
   return graph.join(";\n")
 }
 export async function renderTemplateVideo(
@@ -354,6 +411,8 @@ export async function renderTemplateVideo(
   const ass = path.join(directory, renderId + ".ass")
   const srt = path.join(directory, renderId + ".srt")
   const planFile = path.join(directory, renderId + "-plan.json")
+  const creditsFile = path.join(directory, renderId + "-credits.txt")
+  const posterFile = path.join(directory, renderId + "-poster.jpg")
   const filterFile = path.join(directory, renderId + "-filters.txt")
   // Serialize graph scheduling: parallel workers can stall split/framesync
   // graphs with zoom, transitions, and sidechain audio. Encoding remains threaded.
@@ -402,13 +461,49 @@ export async function renderTemplateVideo(
       musicPath
     )
   }
+  const visualInputs = []
+  for (const visual of plan.visuals) {
+    const asset = record.visualAssets.find((item) => item.id === visual.assetId)
+    visualInputs.push(nextInput++)
+    if (asset.kind === "image") args.push("-loop", "1")
+    else args.push("-stream_loop", "-1", "-ss", n(visual.clipStartSec))
+    args.push("-t", n(visual.endSec - visual.startSec), "-i", asset.path)
+  }
+  let sfxInput = null
+  const effectsPath = await createEffectsTrack(
+    plan,
+    path.join(directory, renderId + "-effects.wav")
+  )
+  if (effectsPath) {
+    sfxInput = nextInput++
+    args.push("-i", effectsPath)
+  }
   await fs.writeFile(ass, makeAssCaptions(plan))
   await fs.writeFile(srt, captionsToSrt(plan.captions))
   await fs.writeFile(planFile, JSON.stringify(plan, null, 2))
+  await fs.writeFile(
+    creditsFile,
+    "ASKEdits media credits\n\n" +
+      (plan.credits.length
+        ? plan.credits
+            .map((item) =>
+              [item.title, item.author, item.license, item.url, item.licenseUrl]
+                .filter(Boolean)
+                .join("\n")
+            )
+            .join("\n\n")
+        : "No external stock assets were used.") +
+      "\n\nTransition effects and procedural motion backgrounds are original ASKEdits assets.\n"
+  )
   const graph = buildTemplateFilterGraph(plan, {
     hasAudio: record.media.hasAudio,
     musicInput,
-    assName: plan.captions.length ? path.basename(ass) : null
+    assName:
+      plan.captions.length || plan.settings.graphics
+        ? path.basename(ass)
+        : null,
+    visualInputs,
+    sfxInput
   })
   await fs.writeFile(filterFile, graph)
   args.push(
@@ -499,6 +594,29 @@ export async function renderTemplateVideo(
     const stream = probe.streams?.find((s) => s.codec_type === "video")
     if (!stream || Number(probe.format?.duration) <= 0)
       throw new Error("The encoder did not produce a valid video.")
+    const firstVisual = plan.visuals[0]
+    const posterTime = firstVisual
+      ? firstVisual.startSec +
+        Math.min(0.5, (firstVisual.endSec - firstVisual.startSec) / 2)
+      : Math.min(0.75, plan.summary.outputDurationSec / 2)
+    await runCommand({
+      command: config.media.ffmpegBin,
+      args: [
+        "-hide_banner",
+        "-y",
+        "-ss",
+        n(posterTime),
+        "-i",
+        video,
+        "-frames:v",
+        "1",
+        "-vf",
+        "scale=640:-2",
+        posterFile
+      ],
+      timeoutMs: 20000,
+      signal
+    })
     return {
       renderId,
       generatedAt: new Date().toISOString(),
@@ -512,7 +630,14 @@ export async function renderTemplateVideo(
         height: stream.height,
         size: Number(probe.format.size)
       },
-      paths: { video, ass, srt, plan: planFile }
+      paths: {
+        video,
+        ass,
+        srt,
+        plan: planFile,
+        credits: creditsFile,
+        poster: posterFile
+      }
     }
   } catch (error) {
     await fs.unlink(video).catch(() => {})

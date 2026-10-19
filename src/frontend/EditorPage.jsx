@@ -1,3 +1,4 @@
+import VisualsPanel from "./VisualsPanel.jsx"
 import {
   Clapperboard,
   Upload,
@@ -103,7 +104,8 @@ export default function EditorPage() {
                 {editedView
                   ? job.preview
                     ? "540p draft"
-                    : job.output?.height + "p export"
+                    : Math.min(job.output?.width, job.output?.height) +
+                      "p export"
                   : "Source footage"}
               </span>
             </div>
@@ -127,9 +129,11 @@ export default function EditorPage() {
                     ref={videoRef}
                     src={playbackUrl}
                     poster={
-                      !editedView && ready
-                        ? asset.previewUrls.thumbnail
-                        : undefined
+                      editedView
+                        ? (job.urls.poster ?? undefined)
+                        : ready
+                          ? asset.previewUrls.thumbnail
+                          : undefined
                     }
                     controls
                     playsInline
@@ -401,6 +405,61 @@ export default function EditorPage() {
                           )}
                         </div>
                       </div>
+                      {plan?.visuals?.length > 0 && (
+                        <div className="timeline-row broll-track">
+                          <Film size={14} />
+                          <div>
+                            {plan.visuals.map((visual, index) => (
+                              <span
+                                key={index}
+                                title={
+                                  visual.label +
+                                  " · " +
+                                  formatTime(visual.startSec) +
+                                  "–" +
+                                  formatTime(visual.endSec)
+                                }
+                                style={{
+                                  left:
+                                    (visual.startSec /
+                                      plan.summary.outputDurationSec) *
+                                      100 +
+                                    "%",
+                                  width:
+                                    ((visual.endSec - visual.startSec) /
+                                      plan.summary.outputDurationSec) *
+                                      100 +
+                                    "%"
+                                }}
+                              >
+                                {String(index + 1).padStart(2, "0")}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {plan?.sfx?.length > 0 && (
+                        <div className="timeline-row sfx-track">
+                          <Music2 size={14} />
+                          <div>
+                            {plan.sfx.map((cue, index) => (
+                              <span
+                                key={index}
+                                style={{
+                                  left:
+                                    (cue.timeSec /
+                                      plan.summary.outputDurationSec) *
+                                      100 +
+                                    "%"
+                                }}
+                                title={
+                                  cue.type + " at " + formatTime(cue.timeSec)
+                                }
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="timeline-row music-track">
                         <Music2 size={14} />
                         <div>
@@ -616,6 +675,7 @@ export default function EditorPage() {
                 { id: "framing", name: "Framing", icon: Monitor },
                 { id: "pacing", name: "Pacing", icon: Scissors },
                 { id: "captions", name: "Captions", icon: Captions },
+                { id: "visuals", name: "Visuals", icon: Film },
                 { id: "audio", name: "Audio", icon: Music2 }
               ].map((item) => (
                 <button
@@ -626,17 +686,23 @@ export default function EditorPage() {
                   aria-controls="settings-content"
                   tabIndex={inspectorTab === item.id ? 0 : -1}
                   onKeyDown={(event) => {
-                    const tabs = ["framing", "pacing", "captions", "audio"]
+                    const tabs = [
+                      "framing",
+                      "pacing",
+                      "captions",
+                      "visuals",
+                      "audio"
+                    ]
                     const index = tabs.indexOf(item.id)
                     const next =
                       event.key === "ArrowRight"
-                        ? (index + 1) % 4
+                        ? (index + 1) % 5
                         : event.key === "ArrowLeft"
-                          ? (index + 3) % 4
+                          ? (index + 4) % 5
                           : event.key === "Home"
                             ? 0
                             : event.key === "End"
-                              ? 3
+                              ? 4
                               : -1
                     if (next >= 0) {
                       event.preventDefault()
@@ -798,6 +864,18 @@ export default function EditorPage() {
                     <option value="balanced">Balanced · keep it moving</option>
                     <option value="punchy">Punchy · tighter pauses</option>
                   </Select>
+                  <Select
+                    label="Scene transition"
+                    value={settings.transition}
+                    onChange={(value) => change("transition", value)}
+                  >
+                    <option value="template">Template default</option>
+                    <option value="cut">Clean cut</option>
+                    <option value="dissolve">Cross dissolve</option>
+                    <option value="slide">Slide</option>
+                    <option value="wipe">Wipe</option>
+                    <option value="flash">Flash</option>
+                  </Select>
                   <Toggle
                     label="Remove long pauses"
                     hint={
@@ -842,6 +920,16 @@ export default function EditorPage() {
                     <option value="bold">Bold punch</option>
                     <option value="clean">Clean subtitles</option>
                     <option value="minimal">Minimal</option>
+                    <option value="kinetic">Word by word · lime pop</option>
+                  </Select>
+                  <Select
+                    label="Caption placement"
+                    value={settings.captionPosition}
+                    onChange={(value) => change("captionPosition", value)}
+                  >
+                    <option value="lower">Lower third</option>
+                    <option value="middle">Middle · presenter layout</option>
+                    <option value="upper">Top</option>
                   </Select>
                   <label className="color-field">
                     <span>Accent color</span>
@@ -868,8 +956,38 @@ export default function EditorPage() {
                   </button>
                 </RecipeSection>
               )}
+              {inspectorTab === "visuals" && <VisualsPanel />}
               {inspectorTab === "audio" && (
                 <RecipeSection icon={Music2} title="Sound & music" open>
+                  <Select
+                    label="Transition sounds"
+                    value={settings.sfx}
+                    onChange={(value) => change("sfx", value)}
+                  >
+                    <option value="none">Off</option>
+                    <option value="subtle">Subtle · soft whoosh & click</option>
+                    <option value="punchy">
+                      Punchy · whoosh, impact & click
+                    </option>
+                  </Select>
+                  {settings.sfx !== "none" && (
+                    <label className="range-field">
+                      <span>
+                        Sound effect level{" "}
+                        <b>{Math.round(settings.sfxVolume * 100)}%</b>
+                      </span>
+                      <input
+                        type="range"
+                        aria-label="Sound effect volume"
+                        min={0}
+                        max={100}
+                        value={settings.sfxVolume * 100}
+                        onChange={(event) =>
+                          change("sfxVolume", Number(event.target.value) / 100)
+                        }
+                      />
+                    </label>
+                  )}
                   <Toggle
                     label="Clean & level speech"
                     hint="Reduce noise and even out loudness"

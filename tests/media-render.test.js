@@ -57,12 +57,12 @@ after(async () => {
   await fs.rm(directory, { recursive: true, force: true })
 })
 test(
-  "all six templates encode valid H.264/AAC videos with the requested shape",
+  "all templates encode valid H.264/AAC videos with the requested shape",
   { skip: !enabled, timeout: 180000 },
   async () => {
     const record = await fixture("templates")
     for (const template of EDIT_TEMPLATES) {
-    console.log("Encoding template:", template.id)
+      console.log("Encoding template:", template.id)
       const result = await renderTemplateVideo(
         record,
         {
@@ -240,5 +240,161 @@ test(
       server.closeAllConnections()
       await new Promise((resolve) => server.close(resolve))
     }
+  }
+)
+
+test(
+  "explainer renders video and image B-roll, graphics, captions, and audible effects",
+  { skip: !enabled, timeout: 120000 },
+  async () => {
+    const record = await fixture("explainer", false)
+    const red = path.join(record.paths.rendersDir, "red.mp4"),
+      blue = path.join(record.paths.rendersDir, "blue.png")
+    await runCommand({
+      command: config.media.ffmpegBin,
+      args: [
+        "-hide_banner",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=red:s=320x180:r=30:d=2",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-pix_fmt",
+        "yuv420p",
+        red
+      ],
+      timeoutMs: 15000
+    })
+    await runCommand({
+      command: config.media.ffmpegBin,
+      args: [
+        "-hide_banner",
+        "-y",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=c=blue:s=320x180",
+        "-frames:v",
+        "1",
+        blue
+      ],
+      timeoutMs: 15000
+    })
+    const redId = "a".repeat(32),
+      blueId = "b".repeat(32)
+    record.visualAssets = [
+      {
+        id: redId,
+        path: red,
+        kind: "video",
+        durationSec: 2,
+        originalName: "Red test visual",
+        source: {
+          provider: "upload",
+          author: "ASKEdits test fixture",
+          license: "Original"
+        }
+      },
+      {
+        id: blueId,
+        path: blue,
+        kind: "image",
+        durationSec: null,
+        originalName: "Blue test image",
+        source: { provider: "upload", license: "Original" }
+      }
+    ]
+    const result = await renderTemplateVideo(
+      record,
+      {
+        ...defaultEditSettings("tech-brief"),
+        preview: true,
+        endSec: 4,
+        music: "none",
+        sourceVolume: 0,
+        transition: "slide",
+        manualCaptions: [
+          {
+            startSec: 0.5,
+            endSec: 3.8,
+            text: "One clear idea changes every frame"
+          }
+        ],
+        visuals: [
+          { assetId: redId, startSec: 1, endSec: 2.4, label: "THE IDEA" },
+          { assetId: blueId, startSec: 2.6, endSec: 3.8, label: "THE RESULT" }
+        ]
+      },
+      "test_explainer"
+    )
+    assert.equal(result.output.width, 540)
+    assert.equal(result.output.height, 960)
+    const plan = JSON.parse(await fs.readFile(result.paths.plan, "utf8"))
+    assert.equal(plan.visuals.length, 2)
+    assert.ok(plan.captions.length >= 6)
+    assert.ok(plan.sfx.length >= 4)
+    assert.match(
+      await fs.readFile(result.paths.credits, "utf8"),
+      /ASKEdits test fixture/
+    )
+    for (const [at, channel, minimum] of [
+      [1.6, "VAVG", 200],
+      [3.1, "UAVG", 190]
+    ]) {
+      const frame = await runCommand({
+        command: config.media.ffmpegBin,
+        args: [
+          "-hide_banner",
+          "-ss",
+          String(at),
+          "-i",
+          result.paths.video,
+          "-vf",
+          "crop=10:10:260:280,signalstats,metadata=mode=print",
+          "-frames:v",
+          "1",
+          "-f",
+          "null",
+          "-"
+        ],
+        timeoutMs: 15000
+      })
+      const value = Number(
+        frame.stderr.match(
+          new RegExp("lavfi.signalstats." + channel + "=([0-9.]+)")
+        )?.[1]
+      )
+      assert.ok(
+        value > minimum,
+        "The imported visual is actually visible at its scheduled time: " +
+          at +
+          " / " +
+          value
+      )
+    }
+    const sound = await runCommand({
+      command: config.media.ffmpegBin,
+      args: [
+        "-hide_banner",
+        "-i",
+        result.paths.video,
+        "-vn",
+        "-af",
+        "astats=reset=0",
+        "-f",
+        "null",
+        "-"
+      ],
+      timeoutMs: 15000
+    })
+    const rms = Number(sound.stderr.match(/RMS level dB: (-?[0-9.]+)/)?.[1])
+    assert.ok(
+      Number.isFinite(rms) && rms > -65,
+      "The export includes real audible SFX over the otherwise silent source"
+    )
   }
 )
