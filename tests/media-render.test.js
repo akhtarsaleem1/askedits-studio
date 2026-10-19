@@ -15,6 +15,7 @@ import app from "../src/backend/app.js"
 const enabled = process.env.RUN_MEDIA_TESTS === "1"
 let directory
 async function fixture(name, audio = true) {
+  console.log("Creating media fixture:", name)
   directory ??= await fs.mkdtemp(path.join(os.tmpdir(), "askedits-media-"))
   const base = path.join(directory, name)
   await fs.mkdir(base, { recursive: true })
@@ -61,6 +62,7 @@ test(
   async () => {
     const record = await fixture("templates")
     for (const template of EDIT_TEMPLATES) {
+    console.log("Encoding template:", template.id)
       const result = await renderTemplateVideo(
         record,
         {
