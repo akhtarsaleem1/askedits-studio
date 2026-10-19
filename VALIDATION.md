@@ -1,9 +1,19 @@
 # Validation — 19 October 2026
 
-- Node test suite: **9 passed**.
-- Production Vite build: **passed**.
-- Browser: studio loaded without JavaScript exceptions; desktop and 390px mobile layouts inspected.
-- Tests exercise real HTTP error responses and concurrent filesystem chunk writes. Test storage uses a temporary directory.
-- Local dependencies were reused from the original workspace. The published GitHub Actions workflow subsequently passed on Linux with a fresh npm dependency installation. [Verified CI run](https://github.com/akhtarsaleem1/askedits-studio/actions/runs/39225542142).
-- Full FFmpeg processing, speech models, GPU encoding, cloud AI calls, and end-to-end export were not run. FFmpeg/ffprobe were unavailable on the execution PATH.
-- The bundled sample video verifies the browser preview only and contains no speech.
+## Verified locally
+
+- Windows, Node.js 24.13.1, FFmpeg/ffprobe 8.0.1, Chrome, and Python 3.13.
+- **17 unit and API tests passed**, including deterministic planning, preview/final consistency, silence removal, caption retiming, Unicode SRT, invalid inputs, concurrent chunks, and HTTP errors.
+- **3 media integration tests passed**: all six template recipes encoded valid fast-start H.264/AAC MP4s with the planned dimensions and duration; silent video with music and burned captions; pause cuts and retimed SRT; actual 1920×1080 export; HTTP upload/preparation/waveform/plan/render/download/cancel workflow.
+- **Browser workflow passed** using the narrated demo: upload and preparation, template selection, manual SRT import and editing, square framing, music, a real 540p preview, a final 720p export, MP4 and SRT downloads, saved settings after refresh, recent projects, stale-render detection, and 390px mobile layout without horizontal overflow. No JavaScript exceptions.
+- **Local automatic captions verified separately** on the 22.6-second narrated demo using Faster-Whisper tiny on CPU: 43 words were returned, then retimed and burned into a 12-second Creator Punch preview. Transcript accuracy still requires review.
+- Production build passed with Vite 8.3.4. Fresh dependency installation completed. npm audit reported **0 vulnerabilities** after compatible dependency updates and the qs override.
+- FFmpeg checks use generated test fixtures and temporary storage. The browser test also isolates its project storage and cleans it up.
+
+## Continuous verification
+
+GitHub Actions installs dependencies, FFmpeg, fonts, and Chromium, then runs unit/API tests, the build, media integration tests, and the browser workflow. Browser screenshots are uploaded as a workflow artifact. Live cloud services are not used by these checks.
+
+## Practical limits
+
+The studio is intended for one user on a local machine. Multiple source files in one timeline, face tracking, beat detection, and reference-video style extraction are outside this release. Excerpt suggestions are deterministic heuristics. CPU rendering of long videos and large exports takes longer; the 2 GB upload limit is a validation bound, not a tested performance benchmark. Automatic captions need an installed model and fonts suitable for the selected language. Legacy cloud/vision modules and GPU rendering were not verified in this release.

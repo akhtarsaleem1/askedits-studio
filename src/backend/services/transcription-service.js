@@ -208,7 +208,9 @@ export async function transcribeAudioAsset({
   transcriptPath,
   rawTranscriptPath,
   mediaDurationSec,
-  onProgress
+  onProgress,
+  provider = "local",
+  language = config.media.transcription.language
 }) {
   // -------------------------------------------------------------------
   // PRIMARY PATH: Groq Whisper API (cloud, fast, whisper-large-v3)
@@ -217,8 +219,9 @@ export async function transcribeAudioAsset({
   let transcriptionProvider = "groq-whisper"
 
   try {
-    console.log(`[transcription] Trying Groq Whisper API (${config.media.transcription.groqWhisperModel})...`)
+    if (provider === "cloud") console.log("[transcription] Using the configured cloud provider")
     onProgress?.(5)
+    if (provider !== "cloud") throw new Error("Using local transcription")
     rawTranscript = await transcribeWithGroqWhisper(audioPath)
     console.log(`[transcription] ✓ Groq Whisper succeeded (lang: ${rawTranscript.language})`)
     onProgress?.(60)
@@ -226,7 +229,8 @@ export async function transcribeAudioAsset({
     // Save raw transcript for debugging
     await fs.writeFile(rawTranscriptPath, JSON.stringify(rawTranscript, null, 2))
   } catch (groqErr) {
-    console.warn(`[transcription] Groq Whisper failed: ${groqErr.message}. Falling back to local faster-whisper GPU...`)
+    if (provider === "cloud") console.warn("[transcription] Cloud transcription unavailable; using the local model.")
+    else console.log("[transcription] Loading local speech model")
     transcriptionProvider = "faster-whisper"
 
     // ---------------------------------------------------------------
@@ -247,7 +251,7 @@ export async function transcribeAudioAsset({
       "--task",
       config.media.transcription.task,
       "--language",
-      config.media.transcription.language,
+      language,
       "--beam-size",
       String(config.media.transcription.beamSize)
     ]
@@ -283,7 +287,7 @@ export async function transcribeAudioAsset({
   let structuredTranscript = buildStructuredTranscript(rawTranscript, { mediaDurationSec })
 
   try {
-    structuredTranscript = await translateTranscriptToEnglish(structuredTranscript)
+    if (process.env.TRANSCRIBE_TRANSLATE_ENGLISH === "true") structuredTranscript = await translateTranscriptToEnglish(structuredTranscript)
   } catch (err) {
     console.error("[transcription] English translation failed:", err)
   }
@@ -306,4 +310,16 @@ export async function transcribeAudioAsset({
       silenceCount: structuredTranscript.summary.silenceCount
     }
   }
+}
+
+let localStatus
+export async function getLocalTranscriptionStatus() {
+  if (!localStatus) localStatus = (async () => {
+    try {
+      const runtime = await resolvePythonRuntime()
+      await runCommand({ command: runtime.command, args: [...runtime.argsPrefix, "-c", "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec(\"faster_whisper\") else 1)"], env: { ...process.env, PYTHONPATH: buildPythonPathEnv() }, timeoutMs: 20000 })
+      return { available: true, model: config.media.transcription.model }
+    } catch { return { available: false, model: config.media.transcription.model } }
+  })()
+  return localStatus
 }

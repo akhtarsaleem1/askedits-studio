@@ -1,3 +1,4 @@
+import { createTemplateRender } from "./template-jobs.js"
 import fs from "node:fs/promises"
 import { withAssetLock } from "../utils/asset-lock.js"
 import { randomUUID } from "node:crypto"
@@ -102,6 +103,8 @@ export async function createUploadSession(payload = {}) {
     assetId,
     originalName,
     mimeType,
+    transcriptionMode: ["auto", "off", "cloud"].includes(payload.transcriptionMode) ? payload.transcriptionMode : "auto",
+    language: /^(auto|[a-z]{2,3})$/.test(payload.language ?? "auto") ? payload.language ?? "auto" : "auto",
     fileSize,
     totalChunks,
     receivedChunks: [],
@@ -296,6 +299,11 @@ export async function analyzeUploadAsset(assetId) {
 }
 
 export async function startAutoEdit(assetId, settings) {
+  if (settings?.templateId) return createTemplateRender(assetId, settings)
+  return startLegacyAutoEdit(assetId, settings)
+}
+
+async function startLegacyAutoEdit(assetId, settings) {
   const record = await loadAssetRecord(assetId)
 
   if (record.processingStatus !== "ready") {

@@ -1,5 +1,6 @@
 import fs from "node:fs/promises"
 import { randomUUID } from "node:crypto"
+import { withAssetLock } from "../utils/asset-lock.js"
 
 import config from "../../../config/default.js"
 import { createHttpError } from "../utils/errors.js"
@@ -47,7 +48,13 @@ export async function saveAssetRecord(record) {
   const temporaryFile = `${nextRecord.paths.metadataFile}.${randomUUID()}.tmp`
   try {
     await fs.writeFile(temporaryFile, JSON.stringify(nextRecord, null, 2))
-    await fs.rename(temporaryFile, nextRecord.paths.metadataFile)
+    for (let attempt = 0; ; attempt++) {
+      try { await fs.rename(temporaryFile, nextRecord.paths.metadataFile); break }
+      catch (error) {
+        if (!["EPERM", "EACCES", "EBUSY"].includes(error.code) || attempt >= 7) throw error
+        await new Promise(resolve => setTimeout(resolve, Math.min(200, 15 * 2 ** attempt)))
+      }
+    }
   } finally {
     await fs.unlink(temporaryFile).catch(() => {})
   }
@@ -95,9 +102,20 @@ export function serializeAssetRecord(record) {
     broll: record.broll ?? [],
     renders: record.renders ?? [],
     errors: record.errors,
+    warnings: record.warnings ?? [],
+    music: record.music ? { originalName: record.music.originalName, durationSec: record.music.durationSec } : null,
+    draftSettings: record.draftSettings ?? null,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
     previewUrls: assetUrls,
     assetUrls
   }
+}
+
+export function updateAssetRecord(assetId, update) {
+  return withAssetLock(assetId, async () => {
+    const record = await loadAssetRecord(assetId)
+    await update(record)
+    return saveAssetRecord(record)
+  })
 }
