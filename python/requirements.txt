@@ -1,3 +1,3 @@
-faster-whisper>=1.1
-scenedetect[opencv]>=0.6
-mediapipe>=0.10
+# Optional automatic captions for the template studio.
+faster-whisper>=1.2,<2
+# Historical vision experiments also require scenedetect[opencv] and mediapipe.

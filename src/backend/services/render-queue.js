@@ -68,7 +68,7 @@ async function executeJob(job) {
     job.result = result
     job.completedAt = new Date().toISOString()
   } catch (error) {
-    job.status = "failed"
+    job.status = error.name === "AbortError" ? "cancelled" : "failed"
     job.error = error.message
     job.completedAt = new Date().toISOString()
     console.error(`[render-queue] Job ${job.jobId} failed: ${error.message}`)

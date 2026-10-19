@@ -1,0 +1,161 @@
+export const EDIT_TEMPLATES = [
+  {
+    id: "creator-punch",
+    name: "Creator Punch",
+    category: "Talking head",
+    label: "MAKE EVERY WORD LAND",
+    description: "Tighter pauses, bold captions, and purposeful punch-ins.",
+    accent: "#b9f36b",
+    gradient: "linear-gradient(140deg,#3b512b,#121c15)",
+    kind: "speech",
+    aspect: "9:16",
+    captionStyle: "bold",
+    captions: true,
+    removeSilence: true,
+    shotSeconds: 5,
+    zoom: 1.08,
+    transition: 0,
+    grade: { contrast: 1.06, saturation: 1.08, brightness: 0.01 },
+    music: "none",
+    duration: "full"
+  },
+  {
+    id: "cinematic-story",
+    name: "Cinematic Story",
+    category: "Cinematic",
+    label: "LET THE MOMENT BREATHE",
+    description:
+      "Measured montage, soft dissolves, a filmic grade, and a music bed.",
+    accent: "#e7bb89",
+    gradient: "linear-gradient(140deg,#655041,#1a2028)",
+    kind: "montage",
+    aspect: "16:9",
+    captionStyle: "minimal",
+    captions: false,
+    removeSilence: false,
+    shotSeconds: 4,
+    zoom: 1.04,
+    transition: 0.3,
+    grade: { contrast: 1.09, saturation: 0.85, brightness: -0.015 },
+    music: "cinematic",
+    duration: 30
+  },
+  {
+    id: "podcast-spotlight",
+    name: "Podcast Spotlight",
+    category: "Podcast",
+    label: "ONE CONVERSATION. A GREAT CLIP.",
+    description:
+      "A focused excerpt, clean speech, readable subtitles, and subtle reframing.",
+    accent: "#c2adff",
+    gradient: "linear-gradient(140deg,#504369,#171a29)",
+    kind: "speech",
+    aspect: "9:16",
+    captionStyle: "clean",
+    captions: true,
+    removeSilence: true,
+    shotSeconds: 8,
+    zoom: 1.04,
+    transition: 0,
+    grade: { contrast: 1.025, saturation: 1, brightness: 0 },
+    music: "none",
+    duration: 60
+  },
+  {
+    id: "clean-interview",
+    name: "Clean Interview",
+    category: "Talking head",
+    label: "THE STORY COMES FIRST",
+    description:
+      "Natural color, restrained captions, and gentle removal of dead air.",
+    accent: "#8acbd4",
+    gradient: "linear-gradient(140deg,#31555c,#182022)",
+    kind: "speech",
+    aspect: "16:9",
+    captionStyle: "clean",
+    captions: true,
+    removeSilence: true,
+    shotSeconds: 12,
+    zoom: 1.03,
+    transition: 0,
+    grade: { contrast: 1.02, saturation: 1, brightness: 0 },
+    music: "none",
+    duration: "full"
+  },
+  {
+    id: "product-launch",
+    name: "Product Launch",
+    category: "Cinematic",
+    label: "BUILT TO BE SEEN",
+    description:
+      "Short energetic shots, crisp color, and an original rhythmic soundtrack.",
+    accent: "#ff9c7a",
+    gradient: "linear-gradient(140deg,#784a3c,#211c24)",
+    kind: "montage",
+    aspect: "1:1",
+    captionStyle: "bold",
+    captions: false,
+    removeSilence: false,
+    shotSeconds: 2.5,
+    zoom: 1.05,
+    transition: 0.12,
+    grade: { contrast: 1.08, saturation: 1.15, brightness: 0.01 },
+    music: "pulse",
+    duration: 15
+  },
+  {
+    id: "travel-journal",
+    name: "Travel Journal",
+    category: "Cinematic",
+    label: "A LITTLE MORE WONDER",
+    description:
+      "Warm highlights, relaxed movement, soft cuts, and a spacious music bed.",
+    accent: "#ebd78c",
+    gradient: "linear-gradient(140deg,#696044,#20281f)",
+    kind: "montage",
+    aspect: "9:16",
+    captionStyle: "minimal",
+    captions: false,
+    removeSilence: false,
+    shotSeconds: 4.5,
+    zoom: 1.04,
+    transition: 0.35,
+    grade: { contrast: 1.04, saturation: 1.1, brightness: 0.015 },
+    music: "focus",
+    duration: 30
+  }
+]
+export function getEditTemplate(id = "creator-punch") {
+  const template = EDIT_TEMPLATES.find((item) => item.id === id)
+  if (!template)
+    throw Object.assign(new Error("Choose a supported editing template."), {
+      statusCode: 400
+    })
+  return template
+}
+export function defaultEditSettings(id) {
+  const template = getEditTemplate(id)
+  return {
+    templateId: template.id,
+    aspect: template.aspect,
+    resolution: 1080,
+    framing: "fit",
+    focalX: 50,
+    focalY: 50,
+    pace: "balanced",
+    removeSilence: template.removeSilence,
+    captions: template.captions,
+    captionStyle: template.captionStyle,
+    captionColor: template.accent,
+    motion: template.id !== "clean-interview",
+    colorGrade: true,
+    voiceCleanup: template.kind === "speech",
+    music: template.music,
+    musicVolume: 0.16,
+    sourceVolume: 1,
+    duration: template.duration,
+    startSec: 0,
+    endSec: null,
+    manualCaptions: null
+  }
+}

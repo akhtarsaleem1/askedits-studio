@@ -1,7 +1,7 @@
 {
   "name": "com.ask.askedits",
-  "version": "1.0.0",
-  "description": "ASKEdits video upload and media processing prototype",
+  "version": "2.0.0",
+  "description": "Template-driven video editing studio with real FFmpeg exports, caption editing, and music mixing",
   "keywords": [
     "ask",
     "edits",
@@ -11,15 +11,17 @@
     "ai",
     "ffmpeg",
     "react",
-    "tailwind"
+    "templates",
+    "captions",
+    "full-stack"
   ],
-  "homepage": "https://github.com/akhtarsaleem0/askedits#readme",
+  "homepage": "https://github.com/akhtarsaleem1/askedits-studio#readme",
   "bugs": {
-    "url": "https://github.com/akhtarsaleem0/askedits/issues"
+    "url": "https://github.com/akhtarsaleem1/askedits-studio/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/akhtarsaleem0/askedits.git"
+    "url": "git+https://github.com/akhtarsaleem1/askedits-studio.git"
   },
   "license": "ISC",
   "author": "ASK Envisionary, Akhtar Saleem Khan",
@@ -34,7 +36,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node src/backend/server.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "test:media": "node scripts/test-media.mjs",
+    "test:ui": "node scripts/test-ui.mjs"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -48,13 +52,14 @@
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.4.1",
-    "autoprefixer": "^10.5.0",
-    "postcss": "^8.5.12",
-    "tailwindcss": "^3.4.19",
-    "vite": "^5.4.19"
+    "@vitejs/plugin-react": "^6.1.2",
+    "playwright": "^1.62.1",
+    "vite": "^8.3.4"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
+  },
+  "overrides": {
+    "qs": "^6.16.1"
   }
 }
