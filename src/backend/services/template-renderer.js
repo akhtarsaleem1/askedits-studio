@@ -349,7 +349,20 @@ export async function renderTemplateVideo(
   const srt = path.join(directory, renderId + ".srt")
   const planFile = path.join(directory, renderId + "-plan.json")
   const filterFile = path.join(directory, renderId + "-filters.txt")
-  const args = ["-hide_banner", "-y", "-i", record.paths.originalFile]
+  // Bound decoder/filter workers: graphs with several shots otherwise create a
+  // worker pool per filter and can exhaust small machines or shared CI runners.
+  const args = [
+    "-hide_banner",
+    "-y",
+    "-threads",
+    "2",
+    "-filter_threads",
+    "2",
+    "-filter_complex_threads",
+    "2",
+    "-i",
+    record.paths.originalFile
+  ]
   let nextInput = 1
   if (!record.media.hasAudio) {
     args.push("-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo")
@@ -387,6 +400,8 @@ export async function renderTemplateVideo(
     n(plan.summary.outputDurationSec),
     "-c:v",
     "libx264",
+    "-threads",
+    "2",
     "-preset",
     plan.settings.preview ? "ultrafast" : "fast",
     "-crf",
