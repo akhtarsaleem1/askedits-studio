@@ -139,19 +139,26 @@ try {
   const srt = await page.request.get(base + captionLink).then((r) => r.text())
   assert.match(srt, /Your story\. Refined\./)
   checks.push("Final MP4 download and retimed SRT download")
+  const draftSaved = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/draft") &&
+      response.request().method() === "PUT" &&
+      response.request().postDataJSON()?.templateId === "podcast-spotlight" &&
+      response.ok()
+  )
   await page.getByRole("button", { name: /Podcast Spotlight/ }).click()
+  await draftSaved
+  await page.reload({ waitUntil: "networkidle" })
   await page.waitForFunction(
     () =>
-      document
-        .querySelector(".saved-state")
-        ?.textContent.includes("Saved locally"),
+      [...document.querySelectorAll(".template-card")].some(
+        (button) =>
+          button.textContent.includes("Podcast Spotlight") &&
+          button.getAttribute("aria-pressed") === "true"
+      ),
     null,
     { timeout: 10000 }
   )
-  await page.reload({ waitUntil: "networkidle" })
-  await page
-    .getByRole("button", { name: /Podcast Spotlight/ })
-    .waitFor({ timeout: 10000 })
   assert.equal(
     await page
       .getByRole("button", { name: /Podcast Spotlight/ })
@@ -195,6 +202,11 @@ try {
   )
   console.log(checks.map((check) => "PASS " + check).join("\n"))
 } catch (error) {
+  const failurePage = browser?.contexts()[0]?.pages()[0]
+  if (failurePage && !failurePage.isClosed())
+    await failurePage
+      .screenshot({ path: path.join(output, "failure.png"), fullPage: true })
+      .catch(() => {})
   console.error(serverLog)
   throw error
 } finally {
