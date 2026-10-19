@@ -225,7 +225,7 @@ try {
   await page
     .getByLabel("Opening headline", { exact: true })
     .fill("ONE GOOD IDEA")
-  await page.locator(".stock-search summary").click()
+  await page.locator(".stock-search:not(.chapter-titles) summary").click()
   await page.route("**/api/studio/stock/search?*", (route) =>
     route.fulfill({
       status: 502,
@@ -241,7 +241,7 @@ try {
     .filter({ hasText: "could not connect" })
     .waitFor()
   await page.unroute("**/api/studio/stock/search?*")
-  await page.locator(".stock-search summary").click()
+  await page.locator(".stock-search:not(.chapter-titles) summary").click()
   await page.getByRole("tab", { name: "Pacing", exact: true }).click()
   await page
     .getByLabel("Scene transition", { exact: true })
@@ -304,7 +304,7 @@ try {
     .then((response) => response.json())
   assert.equal(explainerPlan.settings.templateId, "tech-brief")
   assert.equal(explainerPlan.visuals.length, 1)
-  assert.equal(explainerPlan.settings.layout, "presenter")
+  assert.equal(explainerPlan.settings.layout, "reference")
   assert.equal(explainerPlan.settings.transition, "slide")
   assert.ok(explainerPlan.sfx.length > 0)
   const creditUrl = await page
@@ -330,6 +330,32 @@ try {
   })
   checks.push(
     "Reference-inspired explainer with uploaded B-roll, editable timing, motion title, word captions, slide transitions, sound cues, 720p export, stock error recovery, and media credits"
+  )
+  await nav("Editor").click()
+  await page.getByRole("tab", { name: "Visuals", exact: true }).click()
+  await page
+    .getByRole("button", { name: "Build reference sequence", exact: true })
+    .click()
+  await page
+    .getByRole("checkbox", { name: /Crop existing source captions/ })
+    .check()
+  assert.equal(
+    await page.getByLabel("Source crop top", { exact: true }).inputValue(),
+    "14"
+  )
+  assert.equal(
+    await page.getByLabel("Source crop bottom", { exact: true }).inputValue(),
+    "24"
+  )
+  await page.locator(".chapter-titles summary").click()
+  await page
+    .getByLabel("Chapter 1 title", { exact: true })
+    .fill("A STRONGER STORY")
+  await page
+    .getByRole("checkbox", { name: /Crop existing source captions/ })
+    .uncheck()
+  checks.push(
+    "Reference sequence builder, editable chapters, and source-caption cropping controls"
   )
   await nav("Templates").click()
   const draftSaved = page.waitForResponse(

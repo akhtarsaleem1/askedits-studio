@@ -14,6 +14,18 @@ const choose = (value, fallback, values) => {
   return result
 }
 export function normalizeVisualSettings(input, defaults, duration) {
+  if (
+    input.removeBackground !== undefined &&
+    typeof input.removeBackground !== "boolean"
+  )
+    invalid("Presenter cutout must be true or false.")
+  if (
+    input.cardTitles !== undefined &&
+    (!Array.isArray(input.cardTitles) ||
+      input.cardTitles.length > 10 ||
+      input.cardTitles.some((t) => typeof t !== "string" || t.length > 60))
+  )
+    invalid("Use up to 10 chapter titles under 60 characters.")
   if (input.graphics !== undefined && typeof input.graphics !== "boolean")
     invalid("Motion graphics must be true or false.")
   const headline = input.headline ?? defaults.headline
@@ -23,7 +35,15 @@ export function normalizeVisualSettings(input, defaults, duration) {
   if (!Array.isArray(visuals) || visuals.length > 12)
     invalid("Use at most 12 B-roll placements per edit.")
   return {
-    layout: choose(input.layout, defaults.layout, ["standard", "presenter"]),
+    layout: choose(input.layout, defaults.layout, [
+      "standard",
+      "presenter",
+      "reference"
+    ]),
+    removeBackground: input.removeBackground === true,
+    sourceCropTop: numeric(input.sourceCropTop, 0, 0, 0.3),
+    sourceCropBottom: numeric(input.sourceCropBottom, 0, 0, 0.35),
+    cardTitles: input.cardTitles ?? [],
     transition: choose(input.transition, defaults.transition, [
       "template",
       "cut",

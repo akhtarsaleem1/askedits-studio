@@ -27,7 +27,7 @@ test("the explainer preset creates timed word captions and bounded sound cues", 
       ]
     }
   })
-  assert.equal(plan.settings.layout, "presenter")
+  assert.equal(plan.settings.layout, "reference")
   assert.equal(plan.captions.length, 4)
   assert.deepEqual(
     plan.captions.map((item) => item.text),

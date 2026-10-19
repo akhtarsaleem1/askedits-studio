@@ -6,6 +6,7 @@ import { getEditTemplate } from "../../shared/edit-templates.js"
 import { runCommand } from "../utils/process-runner.js"
 import { createSoundtrack } from "./soundtrack-service.js"
 import { getFFmpegStatus } from "./ffmpeg-runtime.js"
+import { ensurePersonMatte } from "./person-matte.js"
 import {
   even,
   presenterBox,
@@ -51,7 +52,7 @@ export function makeAssCaptions(plan) {
   const minimal = plan.settings.captionStyle === "minimal"
   const size = Math.round(
     Math.min(width, height) *
-      (kinetic ? 0.085 : bold ? 0.065 : minimal ? 0.04 : 0.048)
+      (kinetic ? 0.105 : bold ? 0.065 : minimal ? 0.04 : 0.048)
   )
   const color = plan.settings.captionColor.slice(1)
   const highlight =
@@ -93,7 +94,9 @@ export function makeAssCaptions(plan) {
             ? "{\\an5\\pos(" +
               Math.round(width / 2) +
               "," +
-              Math.round(height * 0.545) +
+              Math.round(
+                height * (plan.settings.layout === "reference" ? 0.9 : 0.545)
+              ) +
               ")}"
             : plan.settings.captionPosition === "upper"
               ? "{\\an8\\pos(" +
@@ -125,18 +128,37 @@ export function buildTemplateFilterGraph(
     musicInput = null,
     assName = null,
     visualInputs = [],
-    sfxInput = null
+    sfxInput = null,
+    maskInput = null
   }
 ) {
   const { width: outputW, height: outputH } = plan.dimensions
   const box = presenterBox(plan)
-  const w = plan.settings.layout === "presenter" ? box.width : outputW
-  const h = plan.settings.layout === "presenter" ? box.height : outputH
+  const layered = ["presenter", "reference"].includes(plan.settings.layout)
+  const cutout = plan.settings.removeBackground && maskInput !== null
+  const w = layered ? box.width : outputW
+  const h = layered ? box.height : outputH
   const template = getEditTemplate(plan.templateId)
   const segments = plan.segments
   const graph = []
+  let source = "0:v"
+  if (cutout) {
+    graph.push(
+      "[" +
+        maskInput +
+        ":v]scale=" +
+        plan.sourceWidth +
+        ":" +
+        plan.sourceHeight +
+        ",format=gray[personmask]"
+    )
+    graph.push("[0:v][personmask]alphamerge[personsource]")
+    source = "personsource"
+  }
   graph.push(
-    "[0:v]split=" +
+    "[" +
+      source +
+      "]split=" +
       segments.length +
       segments.map((_, i) => "[vi" + i + "]").join("")
   )
@@ -157,8 +179,30 @@ export function buildTemplateFilterGraph(
       n(shot.startSec) +
       ":end=" +
       n(shot.endSec) +
-      ",setpts=PTS-STARTPTS,fps=30,settb=AVTB"
-    if (plan.settings.framing === "fit") {
+      ",setpts=PTS-STARTPTS,fps=30,settb=AVTB" +
+      (plan.settings.sourceCropTop || plan.settings.sourceCropBottom
+        ? ",crop=iw:floor(ih*" +
+          n(1 - plan.settings.sourceCropTop - plan.settings.sourceCropBottom) +
+          "/2)*2:0:floor(ih*" +
+          n(plan.settings.sourceCropTop) +
+          "/2)*2"
+        : "")
+    if (cutout && layered) {
+      graph.push(
+        base +
+          ",format=rgba,scale=" +
+          w +
+          ":" +
+          h +
+          ":force_original_aspect_ratio=decrease:force_divisible_by=2,pad=" +
+          w +
+          ":" +
+          h +
+          ":(ow-iw)/2:oh-ih:color=black@0,setsar=1[frame" +
+          i +
+          "]"
+      )
+    } else if (plan.settings.framing === "fit") {
       graph.push(base + ",split=2[bg" + i + "][fg" + i + "]")
       graph.push(
         "[bg" +
@@ -252,7 +296,11 @@ export function buildTemplateFilterGraph(
           ":brightness=" +
           template.grade.brightness
       )
-    effects.push("format=yuv420p", "setsar=1", "settb=AVTB")
+    effects.push(
+      cutout && layered ? "format=yuva420p" : "format=yuv420p",
+      "setsar=1",
+      "settb=AVTB"
+    )
     graph.push("[frame" + i + "]" + effects.join(",") + "[v" + i + "]")
     graph.push(
       "[ai" +
@@ -440,6 +488,12 @@ export async function renderTemplateVideo(
     )
     nextInput++
   }
+  let maskInput = null
+  if (plan.settings.removeBackground) {
+    const maskPath = await ensurePersonMatte(record, { signal, onProgress })
+    maskInput = nextInput++
+    args.push("-i", maskPath)
+  }
   let musicInput = null
   if (plan.settings.music !== "none") {
     const musicPath =
@@ -503,7 +557,8 @@ export async function renderTemplateVideo(
         ? path.basename(ass)
         : null,
     visualInputs,
-    sfxInput
+    sfxInput,
+    maskInput
   })
   await fs.writeFile(filterFile, graph)
   args.push(
@@ -554,7 +609,10 @@ export async function renderTemplateVideo(
         const lines = progressBuffer.split("\n")
         progressBuffer = lines.pop()
         for (const line of lines)
-          if (line.startsWith("out_time_us="))
+          if (
+            line.startsWith("out_time_us=") &&
+            Number.isFinite(Number(line.split("=")[1]))
+          )
             onProgress?.(
               Math.min(
                 98,
