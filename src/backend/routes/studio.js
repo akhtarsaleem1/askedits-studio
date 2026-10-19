@@ -30,6 +30,12 @@ import {
 import { getLocalTranscriptionStatus } from "../services/transcription-service.js"
 import { isAssetProcessing } from "../services/media-processing-service.js"
 import { getFFmpegStatus } from "../services/ffmpeg-runtime.js"
+import {
+  searchStock,
+  stockResult,
+  downloadStock
+} from "../services/stock-media-service.js"
+import { registerVisual } from "../services/visual-library.js"
 
 const router = express.Router()
 const wrap = (handler) => (req, res, next) =>
@@ -50,6 +56,113 @@ const musicUpload = multer({
     )
   }
 })
+const visualUpload = multer({
+  dest: tempRoot,
+  limits: { fileSize: 80 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) =>
+    callback(
+      /\.(mp4|mov|webm|mkv|png|jpe?g|webp)$/i.test(file.originalname)
+        ? null
+        : createHttpError(
+            415,
+            "Choose MP4, MOV, WebM, MKV, PNG, JPG, or WebP."
+          ),
+      true
+    )
+})
+router.get(
+  "/stock/search",
+  wrap(async (req, res) =>
+    res.json(
+      await searchStock(
+        req.query.q,
+        req.query.provider ?? "commons",
+        req.query.kind ?? "video"
+      )
+    )
+  )
+)
+router.post(
+  "/:assetId/visuals",
+  visualUpload.single("visual"),
+  wrap(async (req, res) => {
+    if (!req.file)
+      throw createHttpError(400, "Choose B-roll footage or an image.")
+    try {
+      const record = await loadAssetRecord(req.params.assetId)
+      res.json({
+        visual: await registerVisual(
+          record,
+          req.file.path,
+          req.file.originalname
+        )
+      })
+    } finally {
+      await fs.unlink(req.file.path).catch(() => {})
+    }
+  })
+)
+router.post(
+  "/:assetId/stock",
+  wrap(async (req, res) => {
+    const item = stockResult(req.body.resultId)
+    const record = await loadAssetRecord(req.params.assetId)
+    await fs.mkdir(tempRoot, { recursive: true })
+    const temporary = path.join(tempRoot, randomUUID() + ".download")
+    try {
+      await downloadStock(item, temporary)
+      const { provider, author, license, licenseUrl, url } = item
+      res.json({
+        visual: await registerVisual(record, temporary, item.title, {
+          provider,
+          author,
+          license,
+          licenseUrl,
+          url
+        })
+      })
+    } finally {
+      await fs.unlink(temporary).catch(() => {})
+    }
+  })
+)
+router.post(
+  "/:assetId/visuals/demo",
+  wrap(async (req, res) => {
+    const record = await loadAssetRecord(req.params.assetId)
+    await fs.mkdir(tempRoot, { recursive: true })
+    const incoming = path.join(tempRoot, randomUUID() + ".mp4")
+    try {
+      await fs.copyFile(path.resolve("public/demo/tech-broll.mp4"), incoming)
+      res.json({
+        visual: await registerVisual(
+          record,
+          incoming,
+          "ASKEdits-motion-sample.mp4",
+          {
+            provider: "builtin",
+            author: "ASKEdits Studio",
+            license: "ISC",
+            url: "https://github.com/akhtarsaleem1/askedits-studio"
+          }
+        )
+      })
+    } finally {
+      await fs.unlink(incoming).catch(() => {})
+    }
+  })
+)
+router.get(
+  "/:assetId/visuals/:visualId/thumbnail",
+  wrap(async (req, res) => {
+    const record = await loadAssetRecord(req.params.assetId)
+    const visual = record.visualAssets?.find(
+      (item) => item.id === req.params.visualId
+    )
+    if (!visual) throw createHttpError(404, "This B-roll asset was not found.")
+    res.sendFile(path.resolve(visual.thumbnailPath))
+  })
+)
 let capabilityCache
 router.get(
   "/capabilities",
@@ -65,7 +178,8 @@ router.get(
         ffprobe,
         transcription,
         cloudTranscription: Boolean(config.ai.groqApiKey),
-        templateCount: EDIT_TEMPLATES.length
+        templateCount: EDIT_TEMPLATES.length,
+        stock: { commons: true, pexels: Boolean(config.broll.pexelsApiKey) }
       }))
     res.json(await capabilityCache)
   })
@@ -240,16 +354,26 @@ router.get(
     )
     if (job.status !== "ready")
       throw createHttpError(409, "This render is not ready to download.")
-    const field = { video: "video", captions: "srt", plan: "plan" }[
-      req.params.artifact
-    ]
+    const field = {
+      video: "video",
+      captions: "srt",
+      plan: "plan",
+      credits: "credits",
+      poster: "poster"
+    }[req.params.artifact]
     if (!field || !job.paths?.[field])
       throw createHttpError(404, "This artifact does not exist.")
     if (req.query.download === "1") {
       const stem = path
         .parse(record.originalName)
         .name.replace(/[^a-zA-Z0-9_-]+/g, "-")
-      const extension = { video: ".mp4", srt: ".srt", plan: ".json" }[field]
+      const extension = {
+        video: ".mp4",
+        srt: ".srt",
+        plan: ".json",
+        credits: "-credits.txt",
+        poster: ".jpg"
+      }[field]
       res.download(
         job.paths[field],
         stem + "-" + job.settings.templateId + extension

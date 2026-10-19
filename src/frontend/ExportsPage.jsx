@@ -134,6 +134,7 @@ export default function ExportsPage() {
                   <video
                     key={job.urls.video}
                     src={job.urls.video}
+                    poster={job.urls.poster ?? undefined}
                     controls
                     playsInline
                     preload="metadata"
@@ -145,6 +146,14 @@ export default function ExportsPage() {
                     </p>
                   )}
                   <div className="export-downloads">
+                    {job.urls.credits && (
+                      <a
+                        className="quiet-button"
+                        href={job.urls.credits + "?download=1"}
+                      >
+                        Media credits <Download size={14} />
+                      </a>
+                    )}
                     <a
                       className="quiet-button"
                       href={job.urls.captions + "?download=1"}

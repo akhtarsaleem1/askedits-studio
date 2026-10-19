@@ -28,7 +28,9 @@ export function publicRender(job, assetId) {
         ? {
             video: base + "/video",
             captions: base + "/captions",
-            plan: base + "/plan"
+            plan: base + "/plan",
+            credits: job.paths?.credits ? base + "/credits" : null,
+            poster: job.paths?.poster ? base + "/poster" : null
           }
         : null
   }

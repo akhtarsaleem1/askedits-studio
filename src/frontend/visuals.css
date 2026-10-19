@@ -1,0 +1,230 @@
+.visuals-panel .control-hint {
+  display: block;
+  line-height: 1.65;
+  margin: 10px 0 16px;
+}
+.visuals-panel .field input {
+  width: 100%;
+}
+.visual-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 0 14px;
+  border-top: 1px solid #34402d;
+  margin-top: 20px;
+}
+.visual-section-heading strong {
+  font-size: 13px;
+}
+.visual-section-heading > span {
+  color: #a2b294;
+  font-size: 10px;
+}
+.visual-library {
+  display: grid;
+  gap: 10px;
+  margin: 18px 0 12px;
+  max-height: 270px;
+  overflow-y: auto;
+}
+.visual-library-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  border: 1px solid #36412c;
+  background: #20271c;
+  border-radius: 6px;
+  padding: 7px;
+}
+.visual-library-item img {
+  width: 54px;
+  height: 43px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.visual-library-item > span {
+  flex: 1;
+  min-width: 0;
+}
+.visual-library-item strong {
+  display: block;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.visual-library-item small {
+  display: block;
+  color: #a0b18e;
+  font-size: 10px;
+  margin-top: 5px;
+}
+.visual-placement {
+  border: 1px solid #3d4933;
+  padding: 12px;
+  border-radius: 7px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+.visual-placement > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.visual-placement strong {
+  font-size: 11px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.visual-placement > input {
+  width: 100%;
+  padding: 8px;
+  background: #11180e;
+  border: 1px solid #38482c;
+  border-radius: 4px;
+  color: #eef3e8;
+  font-size: 11px;
+  margin: 10px 0;
+}
+.visual-timing-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+.visual-timing-fields .field {
+  margin: 0;
+}
+.visual-timing-fields .field > span {
+  font-size: 9px;
+}
+.visual-timing-fields .field input {
+  padding: 8px 5px;
+  font-size: 11px;
+}
+.stock-search {
+  margin-top: 24px;
+  border-top: 1px solid #35422b;
+  padding-top: 18px;
+}
+.stock-search summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: #d0dfbf;
+}
+.stock-search form {
+  margin-top: 22px;
+}
+.stock-note {
+  padding: 12px;
+  border: 1px solid #554c2b;
+  border-radius: 6px;
+  background: #322d1c;
+  color: #d9cfab;
+  font-size: 11px;
+  line-height: 1.7;
+}
+.stock-results {
+  display: grid;
+  gap: 12px;
+  margin: 18px 0;
+  max-height: 480px;
+  overflow-y: auto;
+}
+.stock-result {
+  border: 1px solid #3a452f;
+  border-radius: 7px;
+  padding: 10px;
+  min-width: 0;
+}
+.stock-result > img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+}
+.stock-result > strong,
+.stock-result > small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.stock-result > strong {
+  margin: 12px 0 7px;
+  font-size: 12px;
+}
+.stock-result > small {
+  font-size: 10px;
+  color: #a5b497;
+  line-height: 1.6;
+}
+.stock-result > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+.stock-result a {
+  font-size: 11px;
+  color: #c4dfa7;
+}
+.broll-track > div,
+.sfx-track > div {
+  position: relative;
+  height: 26px;
+  background: #1a271c;
+  border: 1px solid #364b36;
+  border-radius: 4px;
+}
+.broll-track > div, .sfx-track > div { flex: 1; min-width: 0; }
+.broll-track > div > span {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  background: #537d75;
+  color: #e9fffb;
+  border: 1px solid #7eb9ac;
+  border-radius: 3px;
+  text-align: center;
+  font-size: 10px;
+  min-width: 4px;
+}
+.sfx-track > div {
+  height: 18px;
+  background: #211d28;
+  border-color: #473755;
+}
+.sfx-track > div > span {
+  position: absolute;
+  top: 4px;
+  width: 6px;
+  height: 7px;
+  background: #b9a0e4;
+  transform: rotate(45deg);
+}
+.reference-note {
+  font-size: 12px;
+  color: #a6b694;
+  line-height: 1.8;
+  margin: 24px 0;
+  padding: 16px 20px;
+  background: #222e18;
+  border: 1px solid #455831;
+  border-radius: 8px;
+}
+.reference-note a {
+  color: #d1ff31;
+  text-decoration: underline;
+}
+.type-kinetic {
+  font-weight: 850;
+  text-transform: uppercase;
+}

@@ -1,3 +1,4 @@
+import { EDIT_TEMPLATES } from "../shared/edit-templates.js"
 import { Check, WandSparkles, ChevronRight } from "lucide-react"
 
 import { useStudio } from "./StudioContext.jsx"
@@ -21,7 +22,7 @@ export default function TemplatesPage() {
         <div className="panel-title template-title">
           <span className="step-number">02</span>
           <h2>Pick your style</h2>
-          <span className="count-pill">6</span>
+          <span className="count-pill">{EDIT_TEMPLATES.length}</span>
         </div>
         <div className="category-tabs" aria-label="Template categories">
           {["All styles", "Talking head", "Cinematic", "Podcast"].map(
@@ -59,6 +60,20 @@ export default function TemplatesPage() {
           ))}
         </div>
       </div>
+      {settings.templateId === "tech-brief" && (
+        <p className="reference-note">
+          Inspired by the visual approach in{" "}
+          <a
+            href="https://www.youtube.com/shorts/JlMzLG-ZFwk"
+            target="_blank"
+            rel="noreferrer"
+          >
+            this reference
+          </a>
+          : lime word captions, presenter with supporting visuals, chapter
+          titles, and rhythmic cuts. Add your own B-roll in Editor → Visuals.
+        </p>
+      )}
       <div className="page-next">
         <div className="selected-template-summary">
           <WandSparkles size={24} />

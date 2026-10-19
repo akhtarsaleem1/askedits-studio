@@ -1,5 +1,30 @@
 export const EDIT_TEMPLATES = [
   {
+    id: "tech-brief",
+    name: "Tech Brief",
+    category: "Talking head",
+    label: "THE NEXT BIG THING",
+    description:
+      "Reference-inspired presenter + B-roll, lime word captions, animated titles, and transition sounds.",
+    accent: "#d1ff31",
+    gradient: "linear-gradient(140deg,#425b10,#080b09)",
+    kind: "speech",
+    aspect: "9:16",
+    captionStyle: "kinetic",
+    captions: true,
+    removeSilence: true,
+    shotSeconds: 3.5,
+    zoom: 1.07,
+    transition: 0,
+    grade: { contrast: 1.06, saturation: 1.04, brightness: 0 },
+    music: "pulse",
+    duration: "full",
+    layout: "presenter",
+    graphics: true,
+    sfx: "punchy",
+    captionPosition: "middle"
+  },
+  {
     id: "creator-punch",
     name: "Creator Punch",
     category: "Talking head",
@@ -156,6 +181,14 @@ export function defaultEditSettings(id) {
     duration: template.duration,
     startSec: 0,
     endSec: null,
-    manualCaptions: null
+    manualCaptions: null,
+    layout: template.layout ?? "standard",
+    graphics: template.graphics ?? false,
+    headline: template.layout ? "THE NEXT BIG THING" : "",
+    sfx: template.sfx ?? "none",
+    sfxVolume: 0.35,
+    captionPosition: template.captionPosition ?? "lower",
+    transition: "template",
+    visuals: []
   }
 }

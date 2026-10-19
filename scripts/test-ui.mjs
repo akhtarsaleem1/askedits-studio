@@ -64,7 +64,7 @@ try {
     .waitFor()
   assert.equal(await page.locator(".settings-panel").count(), 0)
   await nav("Templates").click()
-  assert.equal(await page.locator(".template-card").count(), 6)
+  assert.equal(await page.locator(".template-card").count(), 7)
   assert.equal(await page.locator("video").count(), 0)
   await page.getByRole("button", { name: /Travel Journal/ }).click()
   await page.goBack()
@@ -199,6 +199,138 @@ try {
     /Your story\. Refined\./
   )
   checks.push("Final MP4 and timed SRT download on the Exports page")
+  await nav("Templates").click()
+  await page.getByRole("button", { name: /Tech Brief/ }).click()
+  await page
+    .getByRole("link", { name: "Continue to editor", exact: true })
+    .click()
+  await page.getByRole("tab", { name: "Visuals", exact: true }).click()
+  await page
+    .getByLabel("Upload B-roll", { exact: true })
+    .setInputFiles(path.resolve("public/demo/tech-broll.mp4"))
+  await page.locator(".visual-library-item").first().waitFor({ timeout: 30000 })
+  await page
+    .getByLabel("B-roll 1 label", { exact: true })
+    .fill("A BETTER STORY")
+  await page.getByLabel("B-roll 1 start", { exact: true }).fill("1")
+  await page.getByLabel("B-roll 1 end", { exact: true }).fill("4")
+  await page
+    .getByRole("button", { name: "Try original motion sample", exact: true })
+    .click()
+  await page
+    .getByLabel("Remove B-roll 2", { exact: true })
+    .waitFor({ timeout: 30000 })
+  assert.equal(await page.locator(".visual-library-item").count(), 2)
+  await page.getByLabel("Remove B-roll 2", { exact: true }).click()
+  await page
+    .getByLabel("Opening headline", { exact: true })
+    .fill("ONE GOOD IDEA")
+  await page.locator(".stock-search summary").click()
+  await page.route("**/api/studio/stock/search?*", (route) =>
+    route.fulfill({
+      status: 502,
+      json: { error: "Provider unavailable during offline browser check" }
+    })
+  )
+  await page.getByLabel("Search stock", { exact: true }).fill("robot")
+  await page
+    .getByRole("button", { name: "Search library", exact: true })
+    .click()
+  await page
+    .locator(".stock-note")
+    .filter({ hasText: "could not connect" })
+    .waitFor()
+  await page.unroute("**/api/studio/stock/search?*")
+  await page.locator(".stock-search summary").click()
+  await page.getByRole("tab", { name: "Pacing", exact: true }).click()
+  await page
+    .getByLabel("Scene transition", { exact: true })
+    .selectOption("slide")
+  await page.getByRole("tab", { name: "Audio", exact: true }).click()
+  assert.equal(
+    await page.getByLabel("Transition sounds", { exact: true }).inputValue(),
+    "punchy"
+  )
+  await page.waitForFunction(
+    () => document.querySelector(".recipe-banner button")?.disabled === false,
+    null,
+    { timeout: 15000 }
+  )
+  await page
+    .getByRole("button", { name: "Render preview", exact: true })
+    .click()
+  await page
+    .getByText("Preview ready. Review it, then export in full quality.", {
+      exact: true
+    })
+    .waitFor({ timeout: 90000 })
+  await page.getByRole("button", { name: "Timeline", exact: true }).click()
+  assert.equal(await page.locator(".broll-track span").count(), 1)
+  assert.ok((await page.locator(".sfx-track span").count()) > 0)
+  await page.getByRole("tab", { name: "Visuals", exact: true }).click()
+  await page.waitForFunction(
+    () => document.querySelector("video")?.readyState >= 2,
+    null,
+    { timeout: 15000 }
+  )
+  await page.locator("video").evaluate((video) => {
+    video.currentTime = 2
+  })
+  await page.waitForFunction(
+    () => !document.querySelector("video")?.seeking,
+    null,
+    { timeout: 10000 }
+  )
+  await page.screenshot({
+    path: path.join(output, "explainer-editor.png"),
+    fullPage: true
+  })
+  await nav("Exports").click()
+  await page.getByLabel("Output", { exact: true }).selectOption("720")
+  await page.getByRole("button", { name: "Export video", exact: true }).click()
+  await page
+    .getByRole("link", { name: "Download MP4", exact: true })
+    .waitFor({ timeout: 120000 })
+  await page.waitForFunction(
+    () => document.querySelector("video")?.videoHeight === 1280,
+    null,
+    { timeout: 15000 }
+  )
+  const planUrl = await page
+    .getByRole("link", { name: "Edit decisions .json", exact: false })
+    .getAttribute("href")
+  const explainerPlan = await page.request
+    .get(base + planUrl)
+    .then((response) => response.json())
+  assert.equal(explainerPlan.settings.templateId, "tech-brief")
+  assert.equal(explainerPlan.visuals.length, 1)
+  assert.equal(explainerPlan.settings.layout, "presenter")
+  assert.equal(explainerPlan.settings.transition, "slide")
+  assert.ok(explainerPlan.sfx.length > 0)
+  const creditUrl = await page
+    .getByRole("link", { name: "Media credits", exact: false })
+    .getAttribute("href")
+  assert.match(
+    await page.request
+      .get(base + creditUrl)
+      .then((response) => response.text()),
+    /tech-broll/
+  )
+  await page.locator("video").evaluate((video) => {
+    video.currentTime = 2
+  })
+  await page.waitForFunction(
+    () => !document.querySelector("video")?.seeking,
+    null,
+    { timeout: 10000 }
+  )
+  await page.screenshot({
+    path: path.join(output, "explainer-exports.png"),
+    fullPage: true
+  })
+  checks.push(
+    "Reference-inspired explainer with uploaded B-roll, editable timing, motion title, word captions, slide transitions, sound cues, 720p export, stock error recovery, and media credits"
+  )
   await nav("Templates").click()
   const draftSaved = page.waitForResponse(
     (r) =>

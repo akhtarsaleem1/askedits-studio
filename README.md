@@ -8,27 +8,42 @@ A local video editing studio: upload footage, choose a template, refine the time
 
 The workspace has four separate pages, with one task per page:
 
-| Page | What you do |
-| --- | --- |
-| **Projects** · `/projects` | Upload footage, try the narrated demo, or reopen a saved project. |
-| **Templates** · `/templates` | Browse the six editing recipes and choose a style. |
-| **Editor** · `/editor` | Refine the timeline and captions, then render a short 540p preview. Framing, pacing, caption styling, and audio each have their own settings tab. |
-| **Exports** · `/exports` | Review the edit, choose 720p or 1080p, and download MP4, SRT, and JSON files. Revisit earlier renders. |
+| Page                         | What you do                                                                                                                                         |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Projects** · `/projects`   | Upload footage, try the narrated demo, or reopen a saved project.                                                                                   |
+| **Templates** · `/templates` | Browse the seven editing recipes and choose a style.                                                                                                |
+| **Editor** · `/editor`       | Refine the timeline and captions, then render a short 540p preview. Framing, pacing, captions, visuals, and audio each have their own settings tab. |
+| **Exports** · `/exports`     | Review the edit, choose 720p or 1080p, and download MP4, SRT, JSON, and media credits. Revisit earlier renders.                                     |
 
 Navigation preserves the current edit and background renders. Project links include a project identifier, so refresh and browser Back/Forward restore the correct workspace. You can choose a template before uploading footage. The studio builds a shot plan and retimes captions around the cuts.
 
-| Template          | Editing recipe                                                             |
-| ----------------- | -------------------------------------------------------------------------- |
-| Creator Punch     | Pause removal, bold captions, alternating punch-ins, vertical framing      |
-| Cinematic Story   | Distributed montage shots, dissolves, gentle movement, filmic color, music |
-| Podcast Spotlight | Short speech excerpt, pause removal, clean captions, subtle reframing      |
-| Clean Interview   | Natural color, restrained captions, optional motion, tighter pauses        |
-| Product Launch    | Short shots, crisp color, square framing, rhythmic music                   |
-| Travel Journal    | Warm color, relaxed movement, soft transitions, vertical framing           |
+| Template          | Editing recipe                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| Tech Brief        | Presenter panel, supporting footage, animated section cards, lime word captions, original sound effects |
+| Creator Punch     | Pause removal, bold captions, alternating punch-ins, vertical framing                                   |
+| Cinematic Story   | Distributed montage shots, dissolves, gentle movement, filmic color, music                              |
+| Podcast Spotlight | Short speech excerpt, pause removal, clean captions, subtle reframing                                   |
+| Clean Interview   | Natural color, restrained captions, optional motion, tighter pauses                                     |
+| Product Launch    | Short shots, crisp color, square framing, rhythmic music                                                |
+| Travel Journal    | Warm color, relaxed movement, soft transitions, vertical framing                                        |
 
-Every recipe is adjustable. Use blurred fit or a crop with a manual focal point; choose vertical, landscape, square, or portrait output. Edit caption text and source timestamps, import SRT, and choose three caption styles. Audio controls include speech cleanup, source level, three original generated music beds, custom audio upload, and automatic music ducking under speech.
+Every recipe is adjustable. Use blurred fit or a crop with a manual focal point; choose vertical, landscape, square, or portrait output. Edit caption text and source timestamps, import SRT, and choose four caption styles. Audio controls include speech cleanup, source level, three original generated music beds, custom audio upload, and automatic music ducking under speech.
 
 Drafts, original footage, and export history are stored locally. Reopen recent projects, retry preparation, and cancel queued or active renders. The timeline displays actual shot decisions, caption timing, and source audio peaks.
+
+## Reference-inspired explainer editing
+
+**Tech Brief** takes its visual direction from the [reference Short](https://youtube.com/shorts/JlMzLG-ZFwk): a presenter below supporting visuals, bold lime word captions, numbered sections, and animated contour graphics. See [the implementation notes](docs/reference-style.md) for the observed details and limits.
+
+Choose **Tech Brief → Editor → Visuals**. Upload video or images, or click **Try original motion sample**, then adjust each placement on the edited timeline. B-roll audio is muted so narration continues. The library supports 24 assets per project (80 MB each), with up to 12 placements. Set a video source in-point, label each visual, or use auto-place to spread clips across the edit. Images fit inside the visual panel; videos fill it.
+
+Choose cuts, dissolves, slides, wipes, or flashes in Pacing. Set headline and animated graphics in Visuals, word captions in Captions, and original synthesized whoosh/impact/click cues in Audio. Preview and final export use the same plan. Exports include a poster and media credits.
+
+![Tech Brief final export](docs/images/tech-brief-exports.png)
+
+The stock picker searches Wikimedia Commons without a key, or Pexels with a server-side PEXELS_API_KEY. Only your entered search keywords are sent. Imported files retain source and license metadata in the credits download. Stock access requires an internet connection; provider DNS was unavailable on the development machine, so live search is unverified. Local uploads and the bundled original sample work independently.
+
+This preset does not extract another video's footage or soundtrack. Presenter backgrounds remain visible; automatic person cutout and automatic reference-video analysis are outside this release.
 
 ## Run locally
 
@@ -68,7 +83,7 @@ flowchart LR
   API --> Planner[Shared deterministic edit planner]
   Planner --> Queue[Cancellable render queue]
   Queue --> FFmpeg[FFmpeg video, captions and audio filters]
-  FFmpeg --> Artifacts[MP4, SRT and JSON edit plan]
+  FFmpeg --> Artifacts[MP4, SRT, JSON and media credits]
   API --> Store[Local metadata and draft storage]
 ```
 
