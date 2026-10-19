@@ -18,6 +18,8 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run test:media
+        env:
+          ASKEDITS_MEDIA_DEBUG: "1"
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui
       - name: Save browser screenshots

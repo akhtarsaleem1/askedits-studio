@@ -365,7 +365,14 @@ export async function renderTemplateVideo(
   ]
   let nextInput = 1
   if (!record.media.hasAudio) {
-    args.push("-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo")
+    args.push(
+      "-f",
+      "lavfi",
+      "-t",
+      n(plan.settings.endSec),
+      "-i",
+      "anullsrc=r=48000:cl=stereo"
+    )
     nextInput++
   }
   let musicInput = null
@@ -378,7 +385,16 @@ export async function renderTemplateVideo(
             path.join(directory, renderId + "-music.wav")
           )
     musicInput = nextInput++
-    args.push("-stream_loop", "-1", "-i", musicPath)
+    // Bound the demuxer as well as the filter output. Older FFmpeg versions can
+    // continue buffering a looping WAV after a short multi-input graph ends.
+    args.push(
+      "-stream_loop",
+      "-1",
+      "-t",
+      n(plan.summary.outputDurationSec),
+      "-i",
+      musicPath
+    )
   }
   await fs.writeFile(ass, makeAssCaptions(plan))
   await fs.writeFile(srt, captionsToSrt(plan.captions))
@@ -453,6 +469,10 @@ export async function renderTemplateVideo(
               )
             )
       },
+      onStderrData:
+        process.env.ASKEDITS_MEDIA_DEBUG === "1"
+          ? (text) => process.stderr.write(text)
+          : undefined,
       notFoundMessage:
         "FFmpeg is missing. Install it or set FFMPEG_BIN in .env."
     })
