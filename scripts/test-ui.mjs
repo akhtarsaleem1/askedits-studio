@@ -71,15 +71,13 @@ try {
   )
   checks.push("Upload and FFmpeg preparation")
   await page.getByRole("button", { name: "Captions", exact: true }).click()
-  await page
-    .getByLabel("Import SRT captions", { exact: true })
-    .setInputFiles({
-      name: "sample.srt",
-      mimeType: "text/plain",
-      buffer: Buffer.from(
-        "1\n00:00:00,400 --> 00:00:02,900\nMake every frame count.\n\n2\n00:00:04,000 --> 00:00:06,000\nA clear story comes first.\n"
-      )
-    })
+  await page.getByLabel("Import SRT captions", { exact: true }).setInputFiles({
+    name: "sample.srt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "1\n00:00:00,400 --> 00:00:02,900\nMake every frame count.\n\n2\n00:00:04,000 --> 00:00:06,000\nA clear story comes first.\n"
+    )
+  })
   await page
     .getByLabel("Caption 1 text", { exact: true })
     .fill("Your story. Refined.")
@@ -109,13 +107,11 @@ try {
     null,
     { timeout: 10000 }
   )
-  const preview = await page
-    .locator("video")
-    .evaluate((video) => ({
-      width: video.videoWidth,
-      height: video.videoHeight,
-      duration: video.duration
-    }))
+  const preview = await page.locator("video").evaluate((video) => ({
+    width: video.videoWidth,
+    height: video.videoHeight,
+    duration: video.duration
+  }))
   assert.equal(preview.width, 540)
   assert.equal(preview.height, 540)
   assert.ok(preview.duration <= 12.3)
@@ -131,12 +127,10 @@ try {
   assert.equal(download.status(), 200)
   assert.match(download.headers()["content-disposition"], /attachment/)
   assert.ok((await download.body()).byteLength > 1000)
-  const metadata = await page
-    .locator("video")
-    .evaluate((video) => ({
-      width: video.videoWidth,
-      height: video.videoHeight
-    }))
+  const metadata = await page.locator("video").evaluate((video) => ({
+    width: video.videoWidth,
+    height: video.videoHeight
+  }))
   assert.equal(metadata.width, 720)
   assert.equal(metadata.height, 720)
   const captionLink = await page
@@ -204,6 +198,33 @@ try {
   console.error(serverLog)
   throw error
 } finally {
+  // Cancel encoders before stopping the server so a failed assertion cannot
+  // leave an FFmpeg child running against the temporary storage directory.
+  try {
+    const { projects } = await fetch(base + "/api/studio/projects").then((r) =>
+      r.json()
+    )
+    for (const project of projects) {
+      const { asset } = await fetch(
+        base + "/api/studio/" + project.assetId + "/workspace"
+      ).then((r) => r.json())
+      for (const render of asset.renders.filter((r) =>
+        ["queued", "running"].includes(r.status)
+      )) {
+        await fetch(
+          base +
+            "/api/studio/" +
+            project.assetId +
+            "/renders/" +
+            render.renderId +
+            "/cancel",
+          { method: "POST" }
+        )
+      }
+    }
+  } catch {
+    /* The server may already have exited. */
+  }
   await browser?.close()
   if (server.exitCode === null) {
     const closed = once(server, "close")

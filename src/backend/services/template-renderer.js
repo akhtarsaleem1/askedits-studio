@@ -349,8 +349,8 @@ export async function renderTemplateVideo(
   const srt = path.join(directory, renderId + ".srt")
   const planFile = path.join(directory, renderId + "-plan.json")
   const filterFile = path.join(directory, renderId + "-filters.txt")
-  // Bound decoder/filter workers: graphs with several shots otherwise create a
-  // worker pool per filter and can exhaust small machines or shared CI runners.
+  // Serialize graph scheduling: parallel workers can stall split/framesync
+  // graphs with zoom, transitions, and sidechain audio. Encoding remains threaded.
   const args = [
     "-hide_banner",
     "-y",
@@ -359,7 +359,7 @@ export async function renderTemplateVideo(
     "-filter_threads",
     "2",
     "-filter_complex_threads",
-    "2",
+    "1",
     "-i",
     record.paths.originalFile
   ]
