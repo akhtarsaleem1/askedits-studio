@@ -6,10 +6,16 @@ A local video editing studio: upload footage, choose a template, refine the time
 
 ## From footage to finished edit
 
-1. Upload MP4, MOV, WebM, or MKV footage, or select **Try demo footage**.
-2. Choose a template. The studio builds a shot plan and retimes captions around the cuts.
-3. Adjust the excerpt, pacing, framing, captions, color, and music. Inspect the timeline or compare the source with an edited preview.
-4. Render a short 540p preview, then export at 720p or 1080p. Download the MP4, timed SRT captions, and JSON edit plan.
+The workspace has four separate pages, with one task per page:
+
+| Page | What you do |
+| --- | --- |
+| **Projects** · `/projects` | Upload footage, try the narrated demo, or reopen a saved project. |
+| **Templates** · `/templates` | Browse the six editing recipes and choose a style. |
+| **Editor** · `/editor` | Refine the timeline and captions, then render a short 540p preview. Framing, pacing, caption styling, and audio each have their own settings tab. |
+| **Exports** · `/exports` | Review the edit, choose 720p or 1080p, and download MP4, SRT, and JSON files. Revisit earlier renders. |
+
+Navigation preserves the current edit and background renders. Project links include a project identifier, so refresh and browser Back/Forward restore the correct workspace. You can choose a template before uploading footage. The studio builds a shot plan and retimes captions around the cuts.
 
 | Template          | Editing recipe                                                             |
 | ----------------- | -------------------------------------------------------------------------- |
@@ -73,7 +79,7 @@ flowchart LR
 - Validated asset identifiers, generated artifact paths, audio stream inspection, and server-side credentials.
 - Accessible controls, keyboard focus, reduced motion, and a responsive workspace.
 
-The active editor is src/frontend/Studio.jsx; templates and planning live in src/shared/; the render engine is src/backend/services/template-renderer.js. Earlier experimental AI and vision modules remain separate from the template workflow. Design plans in docs/phases/ are historical, not a completed feature checklist.
+The shared workspace state lives in src/frontend/Studio.jsx. ProjectsPage, TemplatesPage, EditorPage, and ExportsPage render the separate screens; StudioContext shares the active edit between them. Templates and planning live in src/shared/; the render engine is src/backend/services/template-renderer.js. Earlier experimental AI and vision modules remain separate from the template workflow. Design plans in docs/phases/ are historical, not a completed feature checklist.
 
 ## Verify
 

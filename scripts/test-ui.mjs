@@ -50,26 +50,61 @@ try {
   page.on("pageerror", (error) => errors.push(error.message))
   await page.goto(base, { waitUntil: "networkidle" })
   await page.locator(".system-status .online").waitFor({ timeout: 30000 })
-  assert.equal(
-    await page
-      .getByRole("heading", {
-        name: "Good footage. Great stories.",
-        exact: true
-      })
-      .count(),
-    1
+  const nav = (name) =>
+    page
+      .getByRole("navigation", { name: "Studio pages" })
+      .getByRole("link", { name, exact: true })
+  await page
+    .getByRole("heading", { name: "Your projects", exact: true })
+    .waitFor()
+  assert.equal(new URL(page.url()).pathname, "/projects")
+  await nav("Editor").click()
+  await page
+    .getByRole("heading", { name: "Start with your footage.", exact: true })
+    .waitFor()
+  assert.equal(await page.locator(".settings-panel").count(), 0)
+  await nav("Templates").click()
+  assert.equal(await page.locator(".template-card").count(), 6)
+  assert.equal(await page.locator("video").count(), 0)
+  await page.getByRole("button", { name: /Travel Journal/ }).click()
+  await page.goBack()
+  await page
+    .getByRole("heading", { name: "Start with your footage.", exact: true })
+    .waitFor()
+  await nav("Projects").click()
+  checks.push(
+    "Separate page URLs, empty states, template browsing, and browser Back navigation"
   )
   const auto = page.locator(".ingest-options input[type=checkbox]")
   if (await auto.isChecked()) await auto.uncheck()
   await page
     .getByRole("button", { name: "Try demo footage", exact: true })
     .click()
+  await page
+    .getByText("Your footage is ready. Find a style to get started.", {
+      exact: true
+    })
+    .waitFor({ timeout: 45000 })
+  checks.push("Upload and FFmpeg preparation on the Projects page")
+  await page
+    .getByRole("link", { name: "Choose a template", exact: true })
+    .click()
+  assert.equal(
+    await page
+      .getByRole("button", { name: /Travel Journal/ })
+      .getAttribute("aria-pressed"),
+    "true"
+  )
+  await page.getByRole("button", { name: /Cinematic Story/ }).click()
+  await page
+    .getByRole("link", { name: "Continue to editor", exact: true })
+    .click()
   await page.waitForFunction(
     () => document.querySelector(".recipe-banner button")?.disabled === false,
     null,
-    { timeout: 45000 }
+    { timeout: 15000 }
   )
-  checks.push("Upload and FFmpeg preparation")
+  assert.equal(await page.locator(".template-list").count(), 0)
   await page.getByRole("button", { name: "Captions", exact: true }).click()
   await page.getByLabel("Import SRT captions", { exact: true }).setInputFiles({
     name: "sample.srt",
@@ -81,10 +116,30 @@ try {
   await page
     .getByLabel("Caption 1 text", { exact: true })
     .fill("Your story. Refined.")
-  await page.getByRole("button", { name: /Cinematic Story/ }).click()
+  await page.getByRole("tab", { name: "Captions", exact: true }).click()
   await page.getByRole("checkbox", { name: /^Burn in captions/ }).check()
+  await page.getByRole("tab", { name: "Framing", exact: true }).click()
+  assert.equal(await page.getByLabel("Music bed", { exact: true }).count(), 0)
   await page.getByRole("button", { name: "1:1", exact: true }).click()
+  await nav("Exports").click()
   await page.getByLabel("Output", { exact: true }).selectOption("720")
+  assert.equal(await page.locator(".editor-bottom").count(), 0)
+  await nav("Editor").click()
+  await page.getByRole("tab", { name: "Framing", exact: true }).focus()
+  await page.keyboard.press("ArrowRight")
+  assert.equal(
+    await page
+      .getByRole("tab", { name: "Pacing", exact: true })
+      .getAttribute("aria-selected"),
+    "true"
+  )
+  await page.keyboard.press("End")
+  assert.equal(
+    await page
+      .getByRole("tab", { name: "Audio", exact: true })
+      .getAttribute("aria-selected"),
+    "true"
+  )
   await page.getByLabel("Music bed", { exact: true }).selectOption("focus")
   await page.waitForFunction(
     () => document.querySelector(".recipe-banner button")?.disabled === false,
@@ -92,7 +147,7 @@ try {
     { timeout: 10000 }
   )
   checks.push(
-    "Template selection, SRT import, caption editing, aspect ratio and audio settings"
+    "Template, caption, framing, and audio edits persist between dedicated pages"
   )
   await page
     .getByRole("button", { name: "Render preview", exact: true })
@@ -107,16 +162,20 @@ try {
     null,
     { timeout: 10000 }
   )
-  const preview = await page.locator("video").evaluate((video) => ({
-    width: video.videoWidth,
-    height: video.videoHeight,
-    duration: video.duration
+  const preview = await page.locator("video").evaluate((v) => ({
+    width: v.videoWidth,
+    height: v.videoHeight,
+    duration: v.duration
   }))
   assert.equal(preview.width, 540)
   assert.equal(preview.height, 540)
   assert.ok(preview.duration <= 12.3)
-  checks.push("A real 540p video preview with source comparison")
+  checks.push("Real preview rendering on the Editor page")
+  await page.getByRole("link", { name: "Review & export", exact: true }).click()
+  assert.equal(new URL(page.url()).pathname, "/exports")
   await page.getByRole("button", { name: "Export video", exact: true }).click()
+  await nav("Templates").click()
+  await nav("Exports").click()
   await page
     .getByRole("link", { name: "Download MP4", exact: true })
     .waitFor({ timeout: 120000 })
@@ -127,78 +186,115 @@ try {
   assert.equal(download.status(), 200)
   assert.match(download.headers()["content-disposition"], /attachment/)
   assert.ok((await download.body()).byteLength > 1000)
-  const metadata = await page.locator("video").evaluate((video) => ({
-    width: video.videoWidth,
-    height: video.videoHeight
-  }))
-  assert.equal(metadata.width, 720)
-  assert.equal(metadata.height, 720)
-  const captionLink = await page
-    .getByRole("link", { name: "Captions .srt", exact: true })
-    .getAttribute("href")
-  const srt = await page.request.get(base + captionLink).then((r) => r.text())
-  assert.match(srt, /Your story\. Refined\./)
-  checks.push("Final MP4 download and retimed SRT download")
-  const draftSaved = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/draft") &&
-      response.request().method() === "PUT" &&
-      response.request().postDataJSON()?.templateId === "podcast-spotlight" &&
-      response.ok()
-  )
-  await page.getByRole("button", { name: /Podcast Spotlight/ }).click()
-  await draftSaved
-  await page.reload({ waitUntil: "networkidle" })
   await page.waitForFunction(
-    () =>
-      [...document.querySelectorAll(".template-card")].some(
-        (button) =>
-          button.textContent.includes("Podcast Spotlight") &&
-          button.getAttribute("aria-pressed") === "true"
-      ),
+    () => document.querySelector("video")?.videoWidth === 720,
     null,
     { timeout: 10000 }
   )
-  assert.equal(
-    await page
-      .getByRole("button", { name: /Podcast Spotlight/ })
-      .getAttribute("aria-pressed"),
-    "true"
+  const captionLink = await page
+    .getByRole("link", { name: "Captions .srt", exact: false })
+    .getAttribute("href")
+  assert.match(
+    await page.request.get(base + captionLink).then((r) => r.text()),
+    /Your story\. Refined\./
   )
+  checks.push("Final MP4 and timed SRT download on the Exports page")
+  await nav("Templates").click()
+  const draftSaved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/draft") &&
+      r.request().method() === "PUT" &&
+      r.request().postDataJSON()?.templateId === "podcast-spotlight" &&
+      r.ok()
+  )
+  await page.getByRole("button", { name: /Podcast Spotlight/ }).click()
+  await draftSaved
+  const deepLink = page.url()
+  assert.equal(new URL(deepLink).pathname, "/templates")
+  assert.ok(new URL(deepLink).searchParams.get("project"))
+  await page.reload({ waitUntil: "networkidle" })
+  await page
+    .locator(".template-card[aria-pressed=true]")
+    .filter({ hasText: "Podcast Spotlight" })
+    .waitFor({ timeout: 10000 })
+  const isolated = await browser.newContext()
+  const deepPage = await isolated.newPage()
+  await deepPage.goto(deepLink, { waitUntil: "networkidle" })
+  await deepPage
+    .locator(".template-card[aria-pressed=true]")
+    .filter({ hasText: "Podcast Spotlight" })
+    .waitFor({ timeout: 10000 })
+  await isolated.close()
+  await nav("Editor").click()
   assert.equal(
     await page
-      .getByRole("button", { name: "Export video", exact: true })
+      .locator(".recipe-banner")
+      .getByText("Podcast Spotlight", { exact: true })
       .count(),
     1
   )
+  await page.goBack()
   await page
-    .getByRole("button", { name: "Open recent project", exact: true })
-    .click()
-  assert.ok((await page.locator(".project-menu button").count()) > 0)
+    .getByRole("heading", { name: "Find your style", exact: true })
+    .waitFor()
+  await page.goForward()
   await page
-    .getByRole("button", { name: "Open recent project", exact: true })
-    .click()
+    .getByRole("heading", { name: "Make it yours", exact: true })
+    .waitFor()
+  await nav("Projects").click()
+  assert.ok((await page.locator(".project-card").count()) > 0)
+  await page.locator(".project-card").first().click()
+  await page
+    .getByRole("heading", { name: "Make it yours", exact: true })
+    .waitFor()
+  await nav("Exports").click()
+  await page
+    .getByRole("button", { name: "Export video", exact: true })
+    .waitFor()
+  assert.ok((await page.locator(".export-card").count()) > 0)
   checks.push(
-    "Saved settings, stale-render detection, refresh recovery, and recent projects"
+    "Saved drafts across pages and reload, isolated project deep links, Back/Forward, stale renders, and recent projects"
   )
-  await page.screenshot({
-    path: path.join(output, "desktop.png"),
-    fullPage: true
-  })
+  for (const name of ["Projects", "Templates", "Editor", "Exports"]) {
+    await nav(name).click()
+    if (await page.locator("video").count()) {
+      await page.waitForFunction(
+        () => document.querySelector("video")?.readyState >= 2,
+        null,
+        { timeout: 15000 }
+      )
+      await page.locator("video").evaluate((video) => {
+        video.currentTime = 1
+      })
+      await page.waitForFunction(
+        () => !document.querySelector("video")?.seeking,
+        null,
+        { timeout: 10000 }
+      )
+    }
+    await page.screenshot({
+      path: path.join(output, name.toLowerCase() + ".png"),
+      fullPage: true
+    })
+  }
   await page.setViewportSize({ width: 390, height: 844 })
-  assert.equal(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth
-    ),
-    true
-  )
-  await page.screenshot({
-    path: path.join(output, "mobile.png"),
-    fullPage: true
-  })
+  for (const name of ["Projects", "Templates", "Editor", "Exports"]) {
+    await nav(name).click()
+    assert.equal(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth
+      ),
+      true,
+      name + " has no horizontal overflow"
+    )
+    await page.screenshot({
+      path: path.join(output, name.toLowerCase() + "-mobile.png"),
+      fullPage: true
+    })
+  }
   assert.deepEqual(errors, [])
   checks.push(
-    "Mobile layout without horizontal overflow and no browser exceptions"
+    "All four mobile pages fit without horizontal overflow or browser exceptions"
   )
   console.log(checks.map((check) => "PASS " + check).join("\n"))
 } catch (error) {

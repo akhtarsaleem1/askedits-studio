@@ -19,3 +19,7 @@ GitHub Actions installs dependencies, FFmpeg 8.1 (with checksum verification), f
 The studio is intended for one user on a local machine. Multiple source files in one timeline, face tracking, beat detection, and reference-video style extraction are outside this release. Excerpt suggestions are deterministic heuristics. CPU rendering of long videos and large exports takes longer; the 2 GB upload limit is a validation bound, not a tested performance benchmark. Automatic captions need an installed model and fonts suitable for the selected language. Legacy cloud/vision modules and GPU rendering were not verified in this release.
 
 FFmpeg 6 on the Linux runner stalled during music/motion rendering. This release requires FFmpeg 8+ and checks that version before rendering. Parallel filter scheduling also stalled a Windows montage; the engine now uses one filter worker, verified through the full browser export.
+
+## Multi-page workflow verification
+
+The interface now has Projects, Templates, Editor, and Exports routes. A complete Chrome check passed with real preview/final rendering, template selection before upload, settings and SRT persistence across pages, continued export while navigating, saved project refresh, Back/Forward, direct project links in an isolated browser context, recent-project reopening, and keyboard navigation through settings tabs. All four pages were checked at 390px without horizontal overflow or JavaScript exceptions. Screenshots use the synthetic demo in temporary test storage.

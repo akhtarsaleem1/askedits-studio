@@ -1,0 +1,748 @@
+.multipage-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.multipage-app .studio-header {
+  height: 76px;
+}
+.multipage-app .new-project {
+  font-size: 12px;
+}
+.page-navigation {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid #2d322a;
+  padding: 16px 32px;
+  justify-content: center;
+  background: #141713;
+}
+.page-nav-link {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 13px 24px;
+  color: #9ba791;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid transparent;
+}
+.page-nav-link:hover {
+  background: #20261c;
+  color: #eef3e8;
+}
+.page-nav-link.active {
+  background: #293721;
+  border-color: #435835;
+  color: #d5f7b0;
+}
+.nav-step {
+  font-size: 10px;
+  opacity: 0.55;
+}
+.page-nav-link small {
+  border-radius: 4px;
+  background: #ffffff12;
+  padding: 2px 5px;
+  font-size: 10px;
+}
+.multipage-app .workspace-heading {
+  width: 100%;
+  max-width: 1264px;
+  margin: 0 auto;
+  padding: 36px 32px 26px;
+}
+.multipage-app .workspace-heading h1 {
+  font-size: 30px;
+  margin: 10px 0 8px;
+  outline: none;
+}
+.workspace-heading p {
+  margin: 0;
+  color: #9ca891;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.page-content {
+  width: 100%;
+  max-width: 1264px;
+  padding: 0 32px;
+  margin: 0 auto;
+  flex: 1;
+}
+.page-card {
+  border: 1px solid #30382b;
+  border-radius: 12px;
+  padding: 26px;
+  background: #191d17;
+  min-width: 0;
+}
+.projects-intro {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.intro-card {
+  background:
+    radial-gradient(ellipse at 85% 20%, #3b512a60, transparent 70%), #191e16;
+  padding: 36px;
+}
+.intro-card h2 {
+  font-size: 35px;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin: 20px 0 15px;
+}
+.intro-card p {
+  color: #a3ae99;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.workflow-overview {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  font-size: 12px;
+  color: #b3c3a4;
+}
+.multipage-app .upload-panel .panel-title h2 {
+  font-size: 15px;
+}
+.multipage-app .upload-panel .upload-card {
+  min-height: 168px;
+  margin-top: 18px;
+}
+.multipage-app .upload-card strong {
+  font-size: 14px;
+}
+.multipage-app .upload-card small {
+  font-size: 12px;
+}
+.multipage-app .demo-button {
+  font-size: 12px;
+}
+.upload-panel .ingest-options {
+  padding-top: 14px;
+}
+.upload-panel .ingest-options .toggle-row {
+  margin-top: 0;
+}
+.page-next {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 22px;
+  margin: 24px 0;
+  padding: 20px 24px;
+  border: 1px solid #3d4c31;
+  background: #20291b;
+  border-radius: 10px;
+}
+.page-next strong,
+.page-next small {
+  display: block;
+}
+.page-next strong {
+  font-size: 14px;
+}
+.page-next small {
+  font-size: 12px;
+  color: #a5b398;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+.page-next .primary-button {
+  white-space: nowrap;
+}
+.multipage-app .primary-button,
+.multipage-app .secondary-button,
+.multipage-app .quiet-button {
+  font-size: 12px;
+  padding: 12px 17px;
+  min-height: 42px;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.section-heading h2 {
+  font-size: 17px;
+  margin: 0;
+  letter-spacing: -0.25px;
+}
+.section-heading > span {
+  color: #929e86;
+  font-size: 12px;
+}
+.recent-projects {
+  margin-top: 36px;
+}
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.project-card {
+  display: block;
+  text-align: left;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid #30382b;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #191e17;
+}
+.project-card:hover {
+  border-color: #6b8256;
+  background: #242d1e;
+}
+.project-thumbnail {
+  position: relative;
+  aspect-ratio: 16/9;
+  display: grid;
+  place-items: center;
+  background: #20251d;
+  color: #6d805a;
+  overflow: hidden;
+}
+.project-thumbnail img {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  object-fit: cover;
+}
+.project-thumbnail > span {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  border-radius: 4px;
+  background: #10170edb;
+  padding: 4px 7px;
+  color: #edf4e6;
+  font-size: 11px;
+}
+.project-card > div:last-child {
+  padding: 18px;
+}
+.project-card strong {
+  font-size: 14px;
+  display: block;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.project-card small {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #a3b38f;
+  display: flex;
+  justify-content: space-between;
+}
+.page-empty {
+  padding: 54px 26px;
+  text-align: center;
+  border: 1px dashed #35402d;
+  border-radius: 12px;
+  color: #a5b496;
+}
+.page-empty > svg {
+  color: #7c9664;
+  margin-bottom: 12px;
+}
+.page-empty h2,
+.page-empty h3 {
+  color: #e4edda;
+  font-size: 20px;
+  margin: 8px 0;
+}
+.page-empty p {
+  font-size: 13px;
+  line-height: 1.8;
+  max-width: 440px;
+  margin: 10px auto 20px;
+}
+.page-empty .primary-button {
+  display: inline-flex;
+}
+.template-gallery .template-title {
+  margin: 0 0 18px;
+}
+.template-gallery .panel-title h2 {
+  font-size: 16px;
+}
+.template-gallery .step-number {
+  display: none;
+}
+.template-gallery .category-tabs {
+  margin-bottom: 24px;
+  padding: 0;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.template-gallery .category-tabs button {
+  font-size: 12px;
+  padding: 9px 15px;
+}
+.template-gallery .template-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  overflow: visible;
+}
+.template-gallery .template-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  padding: 12px;
+  border-radius: 11px;
+  gap: 0;
+  min-height: 0;
+}
+.template-gallery .template-art.compact {
+  width: 100%;
+  height: 175px;
+  min-height: 0;
+  aspect-ratio: auto;
+  border-radius: 6px;
+}
+.template-gallery .art-type {
+  font-size: 22px;
+  top: 28%;
+}
+.template-gallery .type-clean {
+  font-size: 17px;
+  top: 53%;
+  left: 18%;
+  right: 18%;
+}
+.template-gallery .art-label {
+  font-size: 8px;
+  bottom: 10px;
+}
+.template-gallery .art-frame {
+  left: 30%;
+  width: 42%;
+}
+.template-gallery .art-frame > span:first-child {
+  width: 48px;
+  height: 48px;
+  left: 25%;
+  top: -24px;
+}
+.template-gallery .template-card-copy {
+  padding: 18px 7px 10px;
+}
+.template-gallery .template-card-copy strong {
+  font-size: 15px;
+  margin-bottom: 8px;
+}
+.template-gallery .template-card-copy small {
+  font-size: 12px;
+  line-height: 1.7;
+  min-height: 41px;
+}
+.template-gallery .selection-dot {
+  top: 21px;
+  right: 21px;
+  width: 22px;
+  height: 22px;
+}
+.selected-template-summary {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+.selected-template-summary > svg {
+  color: var(--accent);
+}
+.editor-page {
+  max-width: 1500px;
+}
+.page-editor .workspace-heading {
+  max-width: 1500px;
+}
+.editor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 330px;
+  gap: 26px;
+  align-items: start;
+}
+.editor-layout .preview-panel {
+  min-width: 0;
+}
+.editor-layout .preview-stage {
+  height: 420px;
+}
+.editor-layout .settings-panel {
+  position: static;
+  display: block;
+  grid-column: auto;
+  padding: 20px;
+}
+.editor-layout .settings-panel .panel-title {
+  margin-bottom: 20px;
+}
+.editor-layout .settings-panel .panel-title h2 {
+  font-size: 14px;
+}
+.inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px;
+  padding-bottom: 17px;
+  border-bottom: 1px solid #343e2d;
+}
+.inspector-tabs button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  padding: 12px 3px;
+  color: #9aa88b;
+  border: 1px solid transparent;
+}
+.inspector-tabs button:hover {
+  background: #252e1f;
+}
+.inspector-tabs button[aria-selected="true"] {
+  background: #303d25;
+  border-color: #4b5d3a;
+  color: #d9ebc6;
+}
+.editor-layout .recipe-section {
+  border-top: 0;
+  padding-top: 18px;
+}
+.editor-layout .recipe-section summary {
+  font-size: 13px;
+}
+.editor-layout .export-note {
+  margin-top: 20px;
+}
+.editor-layout .bottom-tabs {
+  gap: 18px;
+}
+.editor-layout .bottom-tabs button {
+  font-size: 12px;
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+.editor-layout .caption-actions {
+  flex-wrap: wrap;
+}
+.editor-layout .caption-actions > div {
+  flex: 1 1 240px;
+}
+.editor-layout .caption-rows {
+  max-height: 320px;
+}
+.compact-next {
+  padding: 16px 18px;
+  margin-bottom: 0;
+}
+.export-layout {
+  display: grid;
+  grid-template-columns: 350px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.export-recipe {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+}
+.export-recipe strong {
+  font-size: 16px;
+  display: block;
+}
+.export-recipe small {
+  font-size: 12px;
+  color: #a5b398;
+  display: block;
+  line-height: 1.8;
+  overflow-wrap: anywhere;
+}
+.export-detail {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid #30382b;
+  padding: 16px 0;
+  font-size: 12px;
+}
+.export-detail > span {
+  color: #a2af96;
+}
+.export-detail:last-of-type {
+  margin-bottom: 22px;
+}
+.export-review .full-width {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+}
+.export-review .control-hint {
+  display: block;
+  margin-top: 18px;
+  line-height: 1.8;
+  font-size: 11px;
+}
+.export-preview video {
+  display: block;
+  width: 100%;
+  max-height: 430px;
+  background: #0d110c;
+  border-radius: 8px;
+}
+.export-downloads {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.export-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 0;
+}
+.export-progress strong {
+  font-size: 14px;
+}
+.export-progress > span {
+  font-size: 12px;
+  color: #a2b292;
+}
+.export-history {
+  margin-top: 24px;
+}
+.export-history .exports-content {
+  padding: 0;
+  max-height: none;
+}
+.export-history .export-card {
+  padding: 17px 0;
+}
+.multipage-app .studio-footer {
+  width: 100%;
+  max-width: 1264px;
+  margin: 36px auto 0;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+.multipage-app .text-button {
+  font-size: 12px;
+}
+.multipage-app .message {
+  max-width: 1200px;
+  width: calc(100% - 64px);
+  margin: 0 auto 20px;
+  font-size: 12px;
+}
+@media (max-width: 1000px) {
+  .multipage-app .project-heading {
+    display: none;
+  }
+  .multipage-app .header-actions {
+    margin-left: auto;
+  }
+  .project-grid,
+  .template-gallery .template-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .editor-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+  }
+  .editor-layout .preview-stage {
+    height: 360px;
+  }
+  .export-layout {
+    grid-template-columns: 320px minmax(0, 1fr);
+  }
+}
+@media (max-width: 760px) {
+  .page-content,
+  .multipage-app .workspace-heading {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+  .projects-intro {
+    grid-template-columns: 1fr;
+  }
+  .intro-card {
+    padding: 26px;
+  }
+  .intro-card h2 {
+    font-size: 28px;
+  }
+  .workflow-overview {
+    margin-top: 24px;
+  }
+  .page-navigation {
+    padding: 10px 14px;
+    gap: 4px;
+    justify-content: stretch;
+  }
+  .page-nav-link {
+    flex: 1;
+    justify-content: center;
+    gap: 7px;
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  .nav-step {
+    display: none;
+  }
+  .page-nav-link small {
+    display: none;
+  }
+  .editor-layout,
+  .export-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .editor-layout .settings-panel {
+    grid-row: 1;
+    margin: 0;
+    padding: 20px;
+  }
+  .editor-layout .recipe-content {
+    display: block;
+  }
+  .editor-layout .settings-panel .export-note {
+    display: none;
+  }
+  .editor-layout .preview-stage {
+    height: 380px;
+  }
+  .page-next {
+    padding: 18px;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .page-next > .primary-button {
+    margin-left: auto;
+  }
+  .multipage-app .message {
+    width: calc(100% - 40px);
+  }
+  .multipage-app .new-project {
+    font-size: 12px;
+  }
+  .multipage-app .new-project svg {
+    margin-right: 4px;
+  }
+}
+@media (max-width: 480px) {
+  .multipage-app .studio-header {
+    height: 64px;
+    padding: 0 16px;
+  }
+  .multipage-app .workspace-heading {
+    padding-top: 26px;
+    padding-bottom: 24px;
+  }
+  .multipage-app .workspace-heading h1 {
+    font-size: 26px;
+  }
+  .page-content {
+    padding: 0 16px;
+  }
+  .page-nav-link {
+    flex-direction: column;
+    gap: 7px;
+    font-size: 11px;
+    padding: 10px 5px;
+  }
+  .page-card {
+    padding: 22px;
+  }
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+  .template-gallery .template-list {
+    gap: 12px;
+  }
+  .template-gallery .template-card {
+    padding: 8px;
+  }
+  .template-gallery .template-art.compact {
+    height: 135px;
+  }
+  .template-gallery .art-type {
+    font-size: 16px;
+  }
+  .template-gallery .type-clean {
+    font-size: 13px;
+  }
+  .template-gallery .template-card-copy {
+    padding: 13px 3px 7px;
+  }
+  .template-gallery .template-card-copy strong {
+    font-size: 13px;
+  }
+  .template-gallery .template-card-copy small {
+    font-size: 11px;
+    min-height: 75px;
+  }
+  .template-gallery .selection-dot {
+    right: 14px;
+    top: 14px;
+    width: 18px;
+    height: 18px;
+  }
+  .template-gallery .category-tabs {
+    gap: 4px;
+  }
+  .template-gallery .category-tabs button {
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+  .page-next > .primary-button {
+    width: 100%;
+    justify-content: center;
+  }
+  .editor-layout .bottom-tabs {
+    gap: 14px;
+  }
+  .editor-layout .bottom-tabs button {
+    font-size: 11px;
+  }
+  .editor-layout .preview-stage {
+    height: 360px;
+  }
+  .compact-next {
+    gap: 12px;
+  }
+  .compact-next > .primary-button {
+    width: auto;
+  }
+  .export-downloads .quiet-button {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .section-heading {
+    flex-wrap: wrap;
+  }
+  .section-heading h2 {
+    font-size: 16px;
+  }
+  .render-status-link {
+    max-width: 118px;
+    font-size: 10px !important;
+  }
+  .multipage-app .studio-footer {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}
