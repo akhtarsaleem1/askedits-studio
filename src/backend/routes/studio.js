@@ -29,6 +29,7 @@ import {
 } from "../services/template-jobs.js"
 import { getLocalTranscriptionStatus } from "../services/transcription-service.js"
 import { isAssetProcessing } from "../services/media-processing-service.js"
+import { getFFmpegStatus } from "../services/ffmpeg-runtime.js"
 
 const router = express.Router()
 const wrap = (handler) => (req, res, next) =>
@@ -55,11 +56,12 @@ router.get(
   wrap(async (_req, res) => {
     if (!capabilityCache)
       capabilityCache = Promise.all([
-        canRunCommand(config.media.ffmpegBin, ["-version"]),
+        getFFmpegStatus(),
         canRunCommand(config.media.ffprobeBin, ["-version"]),
         getLocalTranscriptionStatus()
       ]).then(([ffmpeg, ffprobe, transcription]) => ({
-        ffmpeg,
+        ffmpeg: ffmpeg.available,
+        ffmpegVersion: ffmpeg.version,
         ffprobe,
         transcription,
         cloudTranscription: Boolean(config.ai.groqApiKey),

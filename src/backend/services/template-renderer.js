@@ -5,6 +5,7 @@ import { buildEditPlan, captionsToSrt } from "../../shared/edit-planner.js"
 import { getEditTemplate } from "../../shared/edit-templates.js"
 import { runCommand } from "../utils/process-runner.js"
 import { createSoundtrack } from "./soundtrack-service.js"
+import { getFFmpegStatus } from "./ffmpeg-runtime.js"
 
 export async function readOptionalJson(filePath) {
   try {
@@ -341,6 +342,11 @@ export async function renderTemplateVideo(
   onProgress,
   signal
 ) {
+  if (!(await getFFmpegStatus()).available) {
+    throw new Error(
+      "Install FFmpeg 8 or newer and set FFMPEG_BIN in .env before rendering."
+    )
+  }
   const plan = await planTemplateEdit(record, input)
   const directory = record.paths.rendersDir
   await fs.mkdir(directory, { recursive: true })

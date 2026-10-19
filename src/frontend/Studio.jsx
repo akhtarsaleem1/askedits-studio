@@ -656,7 +656,8 @@ export default function Studio() {
             <div className="status-popover">
               <strong>System status</strong>
               <p>
-                FFmpeg <b>{capabilities?.ffmpeg ? "Ready" : "Not found"}</b>
+                FFmpeg 8+{" "}
+                <b>{capabilities?.ffmpeg ? "Ready" : "Install or upgrade"}</b>
               </p>
               <p>
                 Media probe{" "}

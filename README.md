@@ -26,7 +26,7 @@ Drafts, original footage, and export history are stored locally. Reopen recent p
 
 ## Run locally
 
-Requires Node.js **22.12+** and FFmpeg with ffprobe, H.264/AAC encoders, and the ASS subtitle filter. FFmpeg 8 was tested on Windows; CI also exercises the Linux distribution build. Install fonts with coverage for your caption language.
+Requires Node.js **22.12+** and **FFmpeg 8+** with ffprobe, H.264/AAC encoders, and the ASS subtitle filter. FFmpeg 8 was tested on Windows; CI uses the [BtbN 8.1 Linux build](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest) with checksum verification. Install fonts with coverage for your caption language.
 
 ```sh
 npm ci

@@ -14,7 +14,15 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Install media runtime and fonts
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
+        run: |
+          sudo apt-get update && sudo apt-get install -y fonts-dejavu-core
+          mkdir -p "$RUNNER_TEMP/ffmpeg-download" "$RUNNER_TEMP/ffmpeg"
+          cd "$RUNNER_TEMP/ffmpeg-download"
+          curl --fail --location --retry 3 https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz --output ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz
+          curl --fail --location --retry 3 https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/checksums.sha256 --output checksums.sha256
+          grep ' ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz$' checksums.sha256 | sha256sum --check
+          tar -xf ffmpeg-n8.1-latest-linux64-gpl-8.1.tar.xz -C "$RUNNER_TEMP/ffmpeg" --strip-components=1
+          echo "$RUNNER_TEMP/ffmpeg/bin" >> "$GITHUB_PATH"
       - run: npm test
       - run: npm run build
       - run: npm run test:media
