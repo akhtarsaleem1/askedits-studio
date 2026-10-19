@@ -49,8 +49,8 @@ export function extractVideoPreview(file) {
       () => {
         const durationSec = Number.isFinite(video.duration) ? video.duration : 0
 
-        if (durationSec > 0.25) {
-          video.currentTime = Math.min(durationSec / 3, 1.5)
+        if (durationSec > 0.25 || video.duration === Infinity) {
+          video.currentTime = durationSec > 0 ? Math.min(durationSec / 3, 1.5) : 0.1
           return
         }
 
