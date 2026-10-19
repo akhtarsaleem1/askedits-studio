@@ -1,0 +1,214 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+:root {
+  font-family: 'Montserrat', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  
+  /* Light mode colors */
+  --bg-primary: #e0e5ec;
+  --surface-primary: #e0e5ec;
+  --neu-shadow-dark: #a3b1c6;
+  --neu-shadow-light: #ffffff;
+  --neu-accent: #3b5de7;
+  --neu-accent-light: #45caff;
+  --neu-text: #2d3748;
+  --neu-text-muted: #4a5568;
+  --neu-border: rgba(163, 177, 198, 0.3);
+  
+  color-scheme: light;
+}
+
+:root.dark {
+  /* Dark mode colors */
+  --bg-primary: #181c24;
+  --surface-primary: #181c24;
+  --neu-shadow-dark: #0d0f14;
+  --neu-shadow-light: #242a36;
+  --neu-accent: #4d70ff;
+  --neu-accent-light: #6bf0ff;
+  --neu-text: #edf2f7;
+  --neu-text-muted: #a0aec0;
+  --neu-border: rgba(13, 15, 20, 0.4);
+  
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--neu-text);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Neumorphic UI Utility Classes */
+
+.neu-flat {
+  background: var(--surface-primary);
+  box-shadow: 8px 8px 16px var(--neu-shadow-dark), 
+              -8px -8px 16px var(--neu-shadow-light);
+  border-radius: 16px;
+  transition: all 0.3s ease;
+}
+
+.neu-inset {
+  background: var(--surface-primary);
+  box-shadow: inset 4px 4px 8px var(--neu-shadow-dark), 
+              inset -4px -4px 8px var(--neu-shadow-light);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.neu-card {
+  background: var(--surface-primary);
+  box-shadow: 6px 6px 12px var(--neu-shadow-dark), 
+              -6px -6px 12px var(--neu-shadow-light);
+  border-radius: 16px;
+  border: 1px solid var(--neu-border);
+  transition: all 0.3s ease;
+}
+
+/* Hover/active card styles */
+.neu-card-interactive {
+  cursor: pointer;
+}
+.neu-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 10px 10px 20px var(--neu-shadow-dark), 
+              -10px -10px 20px var(--neu-shadow-light);
+}
+.neu-card-interactive:active {
+  transform: translateY(0);
+  box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), 
+              inset -3px -3px 6px var(--neu-shadow-light);
+}
+
+.neu-btn {
+  background: var(--surface-primary);
+  box-shadow: 4px 4px 8px var(--neu-shadow-dark), 
+              -4px -4px 8px var(--neu-shadow-light);
+  border-radius: 12px;
+  color: var(--neu-text);
+  border: 1px solid var(--neu-border);
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.neu-btn:hover:not(:disabled) {
+  box-shadow: 6px 6px 12px var(--neu-shadow-dark), 
+              -6px -6px 12px var(--neu-shadow-light);
+}
+
+.neu-btn:active:not(:disabled) {
+  box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), 
+              inset -3px -3px 6px var(--neu-shadow-light);
+}
+
+.neu-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.neu-btn-gradient {
+  background: linear-gradient(135deg, var(--neu-accent), var(--neu-accent-light));
+  color: #ffffff;
+  box-shadow: 4px 4px 8px var(--neu-shadow-dark), 
+              -4px -4px 8px var(--neu-shadow-light);
+  border-radius: 50px;
+  border: none;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.neu-btn-gradient:hover:not(:disabled) {
+  opacity: 0.95;
+  box-shadow: 5px 5px 12px var(--neu-shadow-dark), 
+              -5px -5px 12px var(--neu-shadow-light);
+}
+
+.neu-btn-gradient:active:not(:disabled) {
+  transform: scale(0.98);
+  box-shadow: inset 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.neu-btn-gradient:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.neu-input {
+  background: var(--surface-primary);
+  box-shadow: inset 3px 3px 6px var(--neu-shadow-dark), 
+              inset -3px -3px 6px var(--neu-shadow-light);
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: var(--neu-text);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.neu-input:focus {
+  border: 1px solid var(--neu-accent);
+}
+
+.neu-text-gradient {
+  background: linear-gradient(135deg, var(--neu-accent), var(--neu-accent-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Custom scrollbars for Neumorphic feel */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+  box-shadow: inset 2px 2px 5px var(--neu-shadow-dark), 
+              inset -2px -2px 5px var(--neu-shadow-light);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--surface-primary);
+  box-shadow: 2px 2px 5px var(--neu-shadow-dark), 
+              -2px -2px 5px var(--neu-shadow-light);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--neu-shadow-dark);
+}
+
+[role="button"]:focus-visible, button:focus-visible, a:focus-visible { outline: 3px solid var(--neu-accent); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
