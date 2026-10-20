@@ -143,7 +143,17 @@ export function rankVisual(scene, asset, semanticSimilarity) {
   const semantic = Number.isFinite(semanticSimilarity)
     ? Math.max(0, semanticSimilarity)
     : null
-  const score = semantic === null ? lexical : semantic * 0.72 + lexical * 0.28
+  const literalScore =
+    semantic === null ? lexical : semantic * 0.72 + lexical * 0.28
+  // Curated stock illustrates a subject, rather than a named app or person.
+  const thematic =
+    asset.source?.provider === "mixkit" &&
+    sharedThemes.length > 0 &&
+    semantic !== null &&
+    semantic >= 0.2
+  const score = thematic
+    ? Math.max(literalScore, 0.42 + Math.min(0.1, overlap.length * 0.025))
+    : literalScore
   const anchor =
     scene.words.find((w) =>
       matchTokens(w.text).some((t) => overlap.includes(t))
@@ -156,7 +166,8 @@ export function rankVisual(scene, asset, semanticSimilarity) {
     overlap,
     sharedThemes,
     anchorSec: anchor?.startSec ?? scene.startSec,
-    semantic
+    semantic,
+    thematic: thematic && score > literalScore
   }
 }
 export function directCaptions({
@@ -210,9 +221,11 @@ export function directCaptions({
         (!previous || startSec >= previous.endSec)
       ) {
         reason =
-          (best.overlap.length
-            ? "Matched " + best.overlap.slice(0, 4).join(", ")
-            : "Related sentence meaning") + "; enters at the spoken phrase."
+          (best.thematic
+            ? "Illustrative stock for the " + best.sharedThemes[0] + " topic"
+            : best.overlap.length
+              ? "Matched " + best.overlap.slice(0, 4).join(", ")
+              : "Related sentence meaning") + "; enters at the spoken phrase."
         placement = {
           assetId: best.asset.id,
           startSec,

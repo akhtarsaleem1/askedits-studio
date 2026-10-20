@@ -66,7 +66,7 @@ try {
     .waitFor()
   assert.equal(await page.locator(".settings-panel").count(), 0)
   await nav("Templates").click()
-  assert.equal(await page.locator(".template-card").count(), 7)
+  assert.equal(await page.locator(".template-card").count(), 13)
   assert.equal(await page.locator("video").count(), 0)
   await page.getByRole("button", { name: /Travel Journal/ }).click()
   await page.goBack()
@@ -442,6 +442,43 @@ try {
   assert.ok(autoPlan.visuals[0].startSec < 1)
   checks.push(
     "Caption-directed clip selection, phrase timing, automatic transitions, saved descriptions, missing-footage search and real rendered preview"
+  )
+  let stockPhase = "idle",
+    stockPolls = 0
+  await page.route("**/stock-job", async (route) => {
+    if (route.request().method() === "POST") {
+      assert.equal(route.request().postDataJSON().provider, "mixkit")
+      stockPhase = "running"
+      stockPolls = 0
+    } else if (stockPhase === "running" && ++stockPolls > 1)
+      stockPhase = "ready"
+    await route.fulfill({
+      json: {
+        id: "browser-stock-job",
+        status: stockPhase,
+        imported: [],
+        warnings: [],
+        completed: stockPhase === "ready" ? 2 : 0,
+        total: 2,
+        message:
+          stockPhase === "running"
+            ? "Downloading relevant footage…"
+            : "Internet footage choices are ready."
+      }
+    })
+  })
+  await page
+    .getByRole("button", { name: "Find & add internet B-roll", exact: true })
+    .click()
+  await page
+    .getByText("Downloading relevant footage…", { exact: true })
+    .waitFor()
+  await page
+    .getByText("Internet footage choices are ready.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  await page.unroute("**/stock-job")
+  checks.push(
+    "One-click internet B-roll starts a job, displays progress, refreshes the library and enables caption timing"
   )
   await nav("Templates").click()
   const draftSaved = page.waitForResponse(

@@ -1,9 +1,20 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import fs from "node:fs/promises"
+import os from "node:os"
+import path from "node:path"
+import {
+  STOCK_CATALOG,
+  searchCatalog,
+  mixkitVideoMetadata
+} from "../src/backend/services/stock-catalog.js"
+import { stockQueries } from "../src/backend/services/stock-jobs.js"
 import {
   allowedMediaUrl,
   commonsResults,
-  stockResult
+  stockResult,
+  searchStock,
+  downloadStock
 } from "../src/backend/services/stock-media-service.js"
 
 test("stock downloads accept only known HTTPS media hosts", () => {
@@ -28,6 +39,125 @@ test("stock downloads accept only known HTTPS media hosts", () => {
     true
   )
   assert.throws(() => stockResult("an-arbitrary-URL"), /expired/)
+})
+test("curated search finds actual topic matches and requires the current free license", async () => {
+  assert.equal(
+    searchCatalog("university students")[0].title,
+    "Students on a university campus"
+  )
+  assert.deepEqual(searchCatalog("unicorn spaceship"), [])
+  const result = await searchStock("programming", "mixkit")
+  assert.ok(result.items.length >= 2)
+  const clip = STOCK_CATALOG[0]
+  const metadata = (license) =>
+    '<script type="application/ld+json">' +
+    JSON.stringify({
+      "@graph": [
+        {
+          "@type": "VideoObject",
+          "@id": clip.url + "#video",
+          license,
+          contentUrl: clip.mediaUrl
+        }
+      ]
+    }) +
+    "</script>"
+  assert.equal(
+    mixkitVideoMetadata(metadata(clip.licenseUrl), clip.url).contentUrl,
+    clip.mediaUrl
+  )
+  assert.throws(
+    () =>
+      mixkitVideoMetadata(
+        metadata("https://mixkit.co/license/#videoRestricted"),
+        clip.url
+      ),
+    /could not be verified/
+  )
+  assert.throws(
+    () =>
+      mixkitVideoMetadata(
+        metadata(clip.licenseUrl).replace("41637-720.mp4", "other.mp4"),
+        clip.url
+      ),
+    /could not be verified/
+  )
+})
+test("downloads validate every redirect and remove incomplete or oversized files", async () => {
+  const directory = await fs.mkdtemp(
+    path.join(os.tmpdir(), "stock-download-test-")
+  )
+  const originalFetch = globalThis.fetch
+  const target = path.join(directory, "clip.mp4")
+  try {
+    globalThis.fetch = async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: "https://127.0.0.1/private" }
+      })
+    await assert.rejects(
+      downloadStock(
+        { mediaUrl: "https://videos.pexels.com/example.mp4" },
+        target
+      ),
+      /not supported/
+    )
+    globalThis.fetch = async () =>
+      new Response("large", {
+        headers: { "content-length": String(81 * 1024 * 1024) }
+      })
+    await assert.rejects(
+      downloadStock(
+        { mediaUrl: "https://videos.pexels.com/example.mp4" },
+        target
+      ),
+      /under 80 MB/
+    )
+    globalThis.fetch = async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1, 2]))
+            controller.error(new Error("network interrupted"))
+          }
+        })
+      )
+    await assert.rejects(
+      downloadStock(
+        { mediaUrl: "https://videos.pexels.com/example.mp4" },
+        target
+      ),
+      /network interrupted/
+    )
+    await assert.rejects(fs.stat(target), { code: "ENOENT" })
+    globalThis.fetch = async () => new Response(new Uint8Array([1, 2, 3]))
+    await downloadStock(
+      { mediaUrl: "https://videos.pexels.com/example.mp4" },
+      target
+    )
+    assert.equal((await fs.stat(target)).size, 3)
+  } finally {
+    globalThis.fetch = originalFetch
+    await fs.rm(directory, { recursive: true, force: true })
+  }
+})
+test("automatic footage searches use distinct spoken topics and stop without captions", () => {
+  assert.deepEqual(
+    stockQueries({ captions: [], summary: { outputDurationSec: 20 } }),
+    []
+  )
+  const scenes = stockQueries({
+    captions: [
+      { startSec: 0, endSec: 3, text: "Software development and programming." },
+      { startSec: 4, endSec: 7, text: "Study at a university campus." },
+      { startSec: 8, endSec: 11, text: "Software applications and coding." }
+    ],
+    summary: { outputDurationSec: 12 }
+  })
+  assert.deepEqual(
+    scenes.map((scene) => scene.topic),
+    ["development", "education"]
+  )
 })
 test("Commons results retain attribution and exclude unsupported licenses and files", () => {
   const page = (license, mime = "video/webm", size = 1000) => ({

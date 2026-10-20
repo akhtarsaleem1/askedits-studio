@@ -44,7 +44,10 @@ export function normalizeVisualSettings(input, defaults, duration) {
     sourceCropTop: numeric(input.sourceCropTop, 0, 0, 0.3),
     sourceCropBottom: numeric(input.sourceCropBottom, 0, 0, 0.35),
     cardTitles: input.cardTitles ?? [],
-    visualMode: choose(input.visualMode, "manual", ["manual", "captions"]),
+    visualMode: choose(input.visualMode, defaults.visualMode, [
+      "manual",
+      "captions"
+    ]),
     visualRevision: numeric(
       input.visualRevision,
       0,

@@ -493,6 +493,9 @@ export default function Studio() {
       startSec: previous.startSec,
       endSec: previous.endSec,
       manualCaptions: previous.manualCaptions,
+      removeBackground: previous.removeBackground,
+      sourceCropTop: previous.sourceCropTop,
+      sourceCropBottom: previous.sourceCropBottom,
       visuals: previous.visuals ?? []
     }))
     setNotice("")

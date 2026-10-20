@@ -36,16 +36,62 @@ export default function VisualsPanel() {
     setNotice
   } = useStudio()
   const [query, setQuery] = useState("")
-  const [provider, setProvider] = useState("commons")
+  const [provider, setProvider] = useState("mixkit")
   const [kind, setKind] = useState("video")
   const [results, setResults] = useState([])
   const [working, setWorking] = useState(false)
   const [stockNote, setStockNote] = useState("")
+  const [stockJob, setStockJob] = useState(null)
+  const [finding, setFinding] = useState(false)
+  const [stockRefresh, setStockRefresh] = useState(0)
   const uploadRef = useRef(null)
   const stockRef = useRef(null)
   const mounted = useRef(true)
   const activeProject = useRef(asset?.assetId)
   activeProject.current = asset?.assetId
+  useEffect(() => {
+    const id = asset?.assetId
+    if (!id) return
+    const initialIds = new Set(
+      (asset.visualAssets ?? []).map((visual) => visual.id)
+    )
+    let stopped = false,
+      timer
+    setStockJob(null)
+    const poll = async () => {
+      try {
+        const job = await api("/" + id + "/stock-job")
+        if (stopped) return
+        setStockJob(job)
+        if (job?.status === "running") timer = setTimeout(poll, 1000)
+        else if (job) {
+          const { asset: fresh } = await api("/" + id + "/workspace")
+          if (stopped) return
+          setAsset((previous) =>
+            previous?.assetId === id
+              ? { ...previous, visualAssets: fresh.visualAssets }
+              : previous
+          )
+          if (
+            (fresh.visualAssets ?? []).some(
+              (visual) => !initialIds.has(visual.id)
+            )
+          )
+            setSettings((previous) => ({
+              ...previous,
+              visualRevision: previous.visualRevision + 1
+            }))
+        }
+      } catch (error) {
+        if (!stopped) setStockNote(error.message)
+      }
+    }
+    poll()
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [asset?.assetId, stockRefresh])
   useEffect(() => {
     mounted.current = true
     const id = asset?.assetId
@@ -77,6 +123,29 @@ export default function VisualsPanel() {
   const library = asset?.visualAssets ?? []
   const duration =
     plan?.summary.outputDurationSec ?? asset?.media?.durationSec ?? 0
+  async function findFootage() {
+    setFinding(true)
+    const id = asset.assetId
+    try {
+      const job = await api(
+        "/" + id + "/stock-job",
+        jsonRequest({ settings, provider })
+      )
+      if (!mounted.current || activeProject.current !== id) return
+      setStockJob(job)
+      setSettings((previous) => ({
+        ...previous,
+        visualMode: "captions",
+        transition: "auto",
+        visualRevision: previous.visualRevision + 1
+      }))
+      setStockRefresh((value) => value + 1)
+    } catch (error) {
+      setError(error.message)
+    } finally {
+      setFinding(false)
+    }
+  }
   function place(visual) {
     if (settings.visualMode === "captions") {
       setSettings((previous) => ({
@@ -515,6 +584,84 @@ export default function VisualsPanel() {
         <strong>B-roll library</strong>
         <span>{library.length}/24</span>
       </div>
+      <section className="internet-footage">
+        <strong>Real footage from the internet</strong>
+        <p className="control-hint">
+          Download up to 4 relevant video clips, then sync them to your
+          captions. Your uploaded video stays on this computer.
+        </p>
+        <Select
+          label="Internet footage provider"
+          value={provider}
+          onChange={setProvider}
+          disabled={finding || stockJob?.status === "running"}
+        >
+          <option value="mixkit">Selected Mixkit clips · no key</option>
+          <option value="pexels" disabled={!capabilities?.stock?.pexels}>
+            Pexels ·{" "}
+            {capabilities?.stock?.pexels ? "connected" : "server key needed"}
+          </option>
+          <option value="commons">Wikimedia · no key</option>
+        </Select>
+        <button
+          className="primary-button full-width"
+          disabled={
+            !ready ||
+            busy ||
+            working ||
+            finding ||
+            stockJob?.status === "running" ||
+            library.length >= 24
+          }
+          onClick={findFootage}
+        >
+          {finding || stockJob?.status === "running" ? (
+            <Loader2 size={15} className="spin" />
+          ) : (
+            <Search size={15} />
+          )}
+          Find &amp; add internet B-roll
+        </button>
+        {stockJob && (
+          <div className="stock-note" role="status">
+            <p>{stockJob.message}</p>
+            {stockJob.status === "running" && (
+              <>
+                <small>
+                  {stockJob.imported.length} clips added · {stockJob.completed}/
+                  {stockJob.total || "…"} topics checked
+                </small>
+                <button
+                  className="text-button"
+                  onClick={async () => {
+                    try {
+                      await api("/" + asset.assetId + "/stock-job/cancel", {
+                        method: "POST"
+                      })
+                    } catch (error) {
+                      setError(error.message)
+                    }
+                  }}
+                >
+                  Cancel downloads
+                </button>
+              </>
+            )}
+            {stockJob.warnings?.length > 0 && (
+              <details>
+                <summary>{stockJob.warnings.length} provider notices</summary>
+                {stockJob.warnings.map((warning, i) => (
+                  <p key={i}>{warning}</p>
+                ))}
+              </details>
+            )}
+          </div>
+        )}
+        <small className="control-hint">
+          No-key collection: coding, business, education, travel, fitness and
+          food. Caption topics select clips; preview to review the choices.
+        </small>
+      </section>
       <input
         ref={uploadRef}
         type="file"
@@ -687,6 +834,7 @@ export default function VisualsPanel() {
             value={provider}
             onChange={setProvider}
           >
+            <option value="mixkit">Selected Mixkit clips · no key</option>
             <option value="commons">Wikimedia · no key</option>
             <option value="pexels">
               Pexels {capabilities?.stock?.pexels ? "" : "· server key needed"}
@@ -758,16 +906,20 @@ export default function VisualsPanel() {
         <a
           className="text-button"
           href={
-            provider === "pexels"
-              ? "https://www.pexels.com/videos/"
-              : "https://commons.wikimedia.org/"
+            provider === "mixkit"
+              ? "https://mixkit.co/free-stock-video/"
+              : provider === "pexels"
+                ? "https://www.pexels.com/videos/"
+                : "https://commons.wikimedia.org/"
           }
           target="_blank"
           rel="noreferrer"
         >
-          {provider === "pexels"
-            ? "Stock by Pexels"
-            : "Explore Wikimedia Commons"}
+          {provider === "mixkit"
+            ? "Footage by Mixkit"
+            : provider === "pexels"
+              ? "Stock by Pexels"
+              : "Explore Wikimedia Commons"}
           <ExternalLink size={12} />
         </a>
       </details>

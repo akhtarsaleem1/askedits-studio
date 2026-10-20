@@ -26,6 +26,31 @@ const words = [
   { startSec: 10, endSec: 11, text: "Beach" },
   { startSec: 11, endSec: 12, text: "vacation." }
 ]
+test("curated stock can illustrate a supported topic without pretending to depict the named product", () => {
+  const clip = {
+    ...app,
+    kind: "video",
+    durationSec: 8,
+    source: { provider: "mixkit" },
+    description: "A developer programming software at a computer desk",
+    originalName: "Programmer"
+  }
+  const result = directCaptions({
+    captions: [{ startSec: 0, endSec: 4, text: "Applications using Flutter." }],
+    assets: [clip, beach],
+    duration: 4,
+    semanticScores: { "cue-0": { [clip.id]: 0.24, [beach.id]: 0.1 } }
+  })
+  assert.equal(result.placements[0].assetId, clip.id)
+  assert.match(result.decisions[0].reason, /Illustrative stock/)
+  const unrelated = directCaptions({
+    captions: [{ startSec: 0, endSec: 4, text: "Beach vacation." }],
+    assets: [clip],
+    duration: 4,
+    semanticScores: { "cue-0": { [clip.id]: 0.24 } }
+  })
+  assert.equal(unrelated.placements.length, 0)
+})
 test("clips are selected by caption subject and enter at the spoken match, independent of library order", () => {
   for (const assets of [
     [app, beach],

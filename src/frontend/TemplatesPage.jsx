@@ -71,7 +71,8 @@ export default function TemplatesPage() {
             this reference
           </a>
           : lime word captions, presenter with supporting visuals, chapter
-          titles, and rhythmic cuts. Add your own B-roll in Editor → Visuals.
+          titles, and rhythmic cuts. Use Find &amp; add internet B-roll in
+          Editor → Visuals.
         </p>
       )}
       <div className="page-next">
