@@ -1,6 +1,14 @@
 // Timing is derived from narration. Media is selected by descriptions, never rotation.
 const themes = [
   [
+    "beauty",
+    "beauty skincare cosmetic cosmetics makeup lipstick cream creams lotion lotions moisturizer serum sunscreen perfume shampoo salon facial skin"
+  ],
+  [
+    "retail",
+    "retail shopping shop store ecommerce customer customers checkout purchase sale discount"
+  ],
+  [
     "development",
     "app apps application applications software java flutter coding code developer development programming mobile website websites interface ui prototype prototypes"
   ],
@@ -147,7 +155,7 @@ export function rankVisual(scene, asset, semanticSimilarity) {
     semantic === null ? lexical : semantic * 0.72 + lexical * 0.28
   // Curated stock illustrates a subject, rather than a named app or person.
   const thematic =
-    asset.source?.provider === "mixkit" &&
+    ["mixkit", "pexels"].includes(asset.source?.provider) &&
     sharedThemes.length > 0 &&
     semantic !== null &&
     semantic >= 0.2

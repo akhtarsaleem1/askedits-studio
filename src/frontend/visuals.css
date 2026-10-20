@@ -303,3 +303,11 @@
 .internet-footage .stock-note {
   overflow-wrap: anywhere;
 }
+.stock-progress {
+  flex-wrap: wrap;
+}
+.stock-progress a {
+  color: inherit;
+  text-decoration: underline;
+  font-size: 12px;
+}

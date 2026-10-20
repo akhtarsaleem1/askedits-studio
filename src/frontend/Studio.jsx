@@ -73,6 +73,12 @@ export default function Studio() {
   const [saved, setSaved] = useState(false)
   const [musicBusy, setMusicBusy] = useState(false)
   const [renderStarting, setRenderStarting] = useState(false)
+  const [stockJob, setStockJob] = useState(null)
+  const [stockLoading, setStockLoading] = useState(false)
+  const [stockRefresh, setStockRefresh] = useState(0)
+  const completedStock = useRef("")
+  const autoEnabled = useRef(settings.autoStock)
+  autoEnabled.current = settings.autoStock
   const videoRef = useRef(null)
   const fileRef = useRef(null)
   const musicRef = useRef(null)
@@ -81,7 +87,8 @@ export default function Studio() {
   const activeAsset = useRef(null)
   const template = getEditTemplate(settings.templateId)
   const ready = asset?.processingStatus === "ready"
-  const busy = renderStarting || (job && pending(job.status))
+  const renderBusy = renderStarting || Boolean(job && pending(job.status))
+  const busy = renderBusy || stockLoading || stockJob?.status === "running"
   const preparing =
     asset && ["queued", "processing"].includes(asset.processingStatus)
   const fingerprint = useMemo(() => {
@@ -105,6 +112,148 @@ export default function Studio() {
   )
   const captionRows = settings.manualCaptions ?? plan?.sourceCaptions ?? []
   const projectId = asset?.assetId
+  const automaticCaptionInput = JSON.stringify({
+    start: settings.startSec,
+    end: settings.endSec,
+    duration: settings.duration,
+    captions: settings.manualCaptions ?? plan?.sourceCaptions ?? []
+  })
+
+  useEffect(() => {
+    if (!projectId) return
+    const initialIds = new Set(
+      (asset.visualAssets ?? []).map((visual) => visual.id)
+    )
+    let stopped = false,
+      timer
+    const poll = async () => {
+      try {
+        const current = await api("/" + projectId + "/stock-job")
+        if (stopped) return
+        setStockJob(current)
+        if (current?.status === "running") timer = setTimeout(poll, 1000)
+        else if (
+          current &&
+          completedStock.current !== projectId + current.id + current.status
+        ) {
+          const { asset: fresh } = await api("/" + projectId + "/workspace")
+          if (stopped) return
+          completedStock.current = projectId + current.id + current.status
+          setAsset((previous) =>
+            previous?.assetId === projectId
+              ? { ...previous, visualAssets: fresh.visualAssets }
+              : previous
+          )
+          if (fresh.visualAssets?.some((visual) => !initialIds.has(visual.id)))
+            setSettings((previous) => ({
+              ...previous,
+              visualRevision: previous.visualRevision + 1
+            }))
+        }
+      } catch (error) {
+        if (!stopped) {
+          setNotice(error.message)
+          timer = setTimeout(poll, 3000)
+        }
+      }
+    }
+    poll()
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [projectId, stockJob?.id, stockRefresh])
+
+  useEffect(() => {
+    if (
+      !ready ||
+      !capabilities?.stock?.pexels ||
+      !settings.autoStock ||
+      renderBusy ||
+      stockJob?.status === "running" ||
+      !(settings.manualCaptions ?? plan?.sourceCaptions)?.length
+    )
+      return
+    if (settings.visualMode !== "captions" || settings.transition !== "auto") {
+      setSettings((previous) => ({
+        ...previous,
+        visualMode: "captions",
+        transition: "auto"
+      }))
+      return
+    }
+    let stopped = false
+    setStockLoading(true)
+    const timer = setTimeout(async () => {
+      setStockLoading(true)
+      try {
+        const current = await api(
+          "/" + projectId + "/auto-stock",
+          jsonRequest({ settings })
+        )
+        if (
+          stopped &&
+          !autoEnabled.current &&
+          activeAsset.current === projectId &&
+          current?.status === "running"
+        )
+          await api("/" + projectId + "/stock-job/cancel", { method: "POST" })
+        if (!stopped && activeAsset.current === projectId) setStockJob(current)
+      } catch (error) {
+        if (!stopped) setNotice("Automatic Pexels footage: " + error.message)
+      } finally {
+        if (activeAsset.current === projectId) setStockLoading(false)
+      }
+    }, 1200)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+      setStockLoading(false)
+    }
+  }, [
+    projectId,
+    ready,
+    capabilities?.stock?.pexels,
+    settings.autoStock,
+    settings.visualMode,
+    settings.transition,
+    automaticCaptionInput,
+    stockJob?.status,
+    renderBusy
+  ])
+
+  async function findFootage(provider) {
+    const id = projectId
+    setStockLoading(true)
+    try {
+      const current = await api(
+        "/" + id + "/stock-job",
+        jsonRequest({ settings, provider })
+      )
+      if (activeAsset.current !== id) return
+      setStockJob(current)
+      setSettings((previous) => ({
+        ...previous,
+        visualMode: "captions",
+        transition: "auto",
+        visualRevision: previous.visualRevision + 1
+      }))
+      setStockRefresh((value) => value + 1)
+    } catch (error) {
+      if (activeAsset.current === id) setError(error.message)
+    } finally {
+      if (activeAsset.current === id) setStockLoading(false)
+    }
+  }
+  async function cancelStock() {
+    setSettings((previous) => ({ ...previous, autoStock: false }))
+    try {
+      await api("/" + projectId + "/stock-job/cancel", { method: "POST" })
+      setStockRefresh((value) => value + 1)
+    } catch (error) {
+      setError(error.message)
+    }
+  }
 
   useEffect(() => {
     api("/capabilities")
@@ -257,6 +406,8 @@ export default function Studio() {
       const data = await api("/" + id + "/workspace")
       if (activeAsset.current !== id) return
       setAsset(data.asset)
+      setStockJob(null)
+      setStockLoading(false)
       setSourceName(data.asset.originalName)
       setSuggestions(data.suggestions)
       setSettings({
@@ -288,6 +439,8 @@ export default function Studio() {
     localStorage.removeItem("askedits.currentProject")
     setAsset(null)
     setJob(null)
+    setStockJob(null)
+    setStockLoading(false)
     setPlan(null)
     setRenderHistory([])
     setSuggestions([])
@@ -493,6 +646,7 @@ export default function Studio() {
       startSec: previous.startSec,
       endSec: previous.endSec,
       manualCaptions: previous.manualCaptions,
+      autoStock: previous.autoStock,
       removeBackground: previous.removeBackground,
       sourceCropTop: previous.sourceCropTop,
       sourceCropBottom: previous.sourceCropBottom,
@@ -626,6 +780,10 @@ export default function Studio() {
         setSaved,
         setMusicBusy,
         setRenderStarting,
+        stockJob,
+        stockLoading,
+        findFootage,
+        cancelStock,
         change,
         openProject,
         newProject,
@@ -817,6 +975,32 @@ export default function Studio() {
           </div>
         )}
 
+        {(stockJob || stockLoading) && (
+          <div
+            className="message notice-message stock-progress"
+            role="status"
+            aria-label="Internet footage progress"
+          >
+            {stockLoading || stockJob?.status === "running" ? (
+              <Loader2 size={16} className="spin" />
+            ) : (
+              <Check size={16} />
+            )}
+            <span>
+              {stockLoading
+                ? "Matching captions to Pexels footage…"
+                : stockJob.message}
+            </span>
+            {stockJob?.provider === "pexels" && (
+              <a href="https://www.pexels.com" target="_blank" rel="noreferrer">
+                Videos provided by Pexels
+              </a>
+            )}
+            {stockJob?.status === "running" && (
+              <button onClick={cancelStock}>Cancel downloads</button>
+            )}
+          </div>
+        )}
         {page === "projects" && <ProjectsPage />}
         {page === "templates" && <TemplatesPage />}
         {page === "editor" && <EditorPage />}

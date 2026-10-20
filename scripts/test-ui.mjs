@@ -15,7 +15,12 @@ const storage = await fs.mkdtemp(path.join(os.tmpdir(), "askedits-ui-"))
 const output = path.resolve("output/browser")
 await fs.mkdir(output, { recursive: true })
 const server = spawn(process.execPath, ["src/backend/server.js"], {
-  env: { ...process.env, PORT: String(port), STORAGE_ROOT: storage },
+  env: {
+    ...process.env,
+    PORT: String(port),
+    STORAGE_ROOT: storage,
+    PEXELS_API_KEY: ""
+  },
   windowsHide: true,
   stdio: ["ignore", "pipe", "pipe"]
 })
@@ -479,6 +484,148 @@ try {
   await page.unroute("**/stock-job")
   checks.push(
     "One-click internet B-roll starts a job, displays progress, refreshes the library and enables caption timing"
+  )
+  const autoWorkspace = await page.request
+    .get(base + "/api/studio/" + autoProject + "/workspace")
+    .then((r) => r.json())
+  await page.request.put(base + "/api/studio/" + autoProject + "/draft", {
+    data: { ...autoWorkspace.asset.draftSettings, autoStock: true }
+  })
+  const actualCapabilities = await page.request
+    .get(base + "/api/studio/capabilities")
+    .then((r) => r.json())
+  await page.route("**/api/studio/capabilities", (route) =>
+    route.fulfill({
+      json: {
+        ...actualCapabilities,
+        stock: { ...actualCapabilities.stock, pexels: true }
+      }
+    })
+  )
+  let automaticJob = null,
+    automaticStarts = 0,
+    automaticText = "",
+    finishAutomatic = false
+  await page.route("**/auto-stock", async (route) => {
+    const input = route.request().postDataJSON().settings
+    assert.equal(input.autoStock, true)
+    assert.equal(input.visualMode, "captions")
+    assert.equal(input.transition, "auto")
+    const text = JSON.stringify(input.manualCaptions)
+    if (
+      !automaticJob ||
+      text !== automaticText ||
+      automaticJob.status === "cancelled"
+    ) {
+      automaticText = text
+      automaticStarts++
+      finishAutomatic = false
+      automaticJob = {
+        id: "automatic-" + automaticStarts,
+        automatic: true,
+        provider: "pexels",
+        status: "running",
+        imported: [],
+        warnings: [],
+        completed: 0,
+        total: 2,
+        message: "Automatic Pexels download in progress."
+      }
+    }
+    await route.fulfill({ json: automaticJob })
+  })
+  await page.route("**/stock-job", async (route) => {
+    if (finishAutomatic && automaticJob?.status === "running")
+      automaticJob = {
+        ...automaticJob,
+        status: "ready",
+        message: "Automatic Pexels footage ready."
+      }
+    await route.fulfill({ json: automaticJob })
+  })
+  await page.route("**/stock-job/cancel", async (route) => {
+    automaticJob = {
+      ...automaticJob,
+      status: "cancelled",
+      message: "Automatic download cancelled."
+    }
+    await route.fulfill({ json: automaticJob })
+  })
+  await page.reload({ waitUntil: "networkidle" })
+  await page
+    .getByText("Automatic Pexels download in progress.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  assert.equal(automaticStarts, 1)
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Render preview", exact: true })
+      .isDisabled(),
+    true
+  )
+  await nav("Templates").click()
+  await page
+    .getByText("Automatic Pexels download in progress.", { exact: true })
+    .waitFor()
+  finishAutomatic = true
+  await page
+    .getByText("Automatic Pexels footage ready.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  await nav("Editor").click()
+  await page
+    .getByLabel("Import SRT captions", { exact: true })
+    .setInputFiles({
+      name: "beauty-sync.srt",
+      mimeType: "text/plain",
+      buffer: Buffer.from(
+        "1\n00:00:00,400 --> 00:00:04,000\nCosmetics skincare products.\n"
+      )
+    })
+  await page
+    .getByText("Automatic Pexels download in progress.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  assert.equal(
+    automaticStarts,
+    2,
+    "caption edits automatically start a fresh request"
+  )
+  const automaticOffSaved = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/draft") &&
+      r.request().method() === "PUT" &&
+      r.request().postDataJSON()?.autoStock === false &&
+      r.ok()
+  )
+  await page
+    .getByRole("button", { name: "Cancel downloads", exact: true })
+    .click()
+  await automaticOffSaved
+  await page
+    .getByText("Automatic download cancelled.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  await page.reload({ waitUntil: "networkidle" })
+  await page.getByRole("tab", { name: "Visuals", exact: true }).click()
+  assert.equal(
+    await page
+      .getByLabel("Automatic Pexels footage", { exact: true })
+      .isChecked(),
+    false
+  )
+  assert.equal(
+    automaticStarts,
+    2,
+    "cancelled automation stays off across reload"
+  )
+  await page.getByLabel("Automatic Pexels footage", { exact: true }).check()
+  await page
+    .getByText("Automatic Pexels download in progress.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  assert.equal(automaticStarts, 3)
+  finishAutomatic = true
+  await page
+    .getByText("Automatic Pexels footage ready.", { exact: true })
+    .waitFor({ timeout: 15000 })
+  checks.push(
+    "Pexels starts automatically from captions, survives page navigation, blocks early export, resyncs after caption edits, and saves cancellation/opt-in"
   )
   await nav("Templates").click()
   const draftSaved = page.waitForResponse(

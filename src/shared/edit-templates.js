@@ -346,6 +346,7 @@ export function defaultEditSettings(id) {
     sourceCropBottom: 0,
     cardTitles: [],
     visualMode: template.visualMode ?? "manual",
+    autoStock: true,
     visualRevision: 0
   }
 }

@@ -16,6 +16,7 @@ import {
 } from "../src/backend/services/stock-jobs.js"
 import { STOCK_CATALOG } from "../src/backend/services/stock-catalog.js"
 import { defaultEditSettings } from "../src/shared/edit-templates.js"
+import { ensureAutomaticStock } from "../src/backend/services/automatic-stock.js"
 
 test(
   "internet B-roll jobs import probed video, preserve credits, avoid duplicates, cancel and recover",
@@ -25,6 +26,7 @@ test(
       path.join(os.tmpdir(), "askedits-stock-jobs-")
     )
     const previousRoot = config.upload.storageRoot,
+      previousPexelsKey = config.broll.pexelsApiKey,
       originalFetch = globalThis.fetch
     config.upload.storageRoot = directory
     try {
@@ -125,9 +127,47 @@ test(
       await startStockJob(asset.assetId, { ...settings, manualCaptions: [] })
       assert.equal((await finish()).status, "failed")
       assert.match((await getStockJob(asset.assetId)).message, /captions first/)
+      config.broll.pexelsApiKey = "test-key"
+      globalThis.fetch = async (url) =>
+        String(url).startsWith("https://api.pexels.com/")
+          ? new Response(
+              JSON.stringify({
+                videos: [
+                  {
+                    id: 123,
+                    url: "https://www.pexels.com/video/applying-face-cream-skincare-123/",
+                    user: { name: "Test creator" },
+                    video_files: [
+                      {
+                        file_type: "video/mp4",
+                        width: 960,
+                        link: "https://videos.pexels.com/video-files/123/cream.mp4"
+                      }
+                    ]
+                  }
+                ]
+              })
+            )
+          : new Response(video)
+      const automatic = await ensureAutomaticStock(asset.assetId, {
+        ...settings,
+        manualCaptions: [
+          { startSec: 0, endSec: 4, text: "Applying face cream skincare." }
+        ]
+      })
+      assert.equal(automatic.automatic, true)
+      assert.equal((await finish()).imported.length, 1)
+      const imported = (await loadAssetRecord(asset.assetId)).visualAssets.at(
+        -1
+      )
+      assert.equal(imported.source.provider, "pexels")
+      assert.equal(imported.source.author, "Test creator")
+      assert.equal(imported.description, "applying face cream skincare")
+      assert.equal(imported.kind, "video")
     } finally {
       globalThis.fetch = originalFetch
       config.upload.storageRoot = previousRoot
+      config.broll.pexelsApiKey = previousPexelsKey
       assert.equal(path.dirname(directory), path.resolve(os.tmpdir()))
       await fs.rm(directory, { recursive: true, force: true })
     }

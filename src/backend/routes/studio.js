@@ -38,6 +38,7 @@ import {
 import { registerVisual, publicVisual } from "../services/visual-library.js"
 import { personMatteStatus } from "../services/person-matte.js"
 import { captionMatcherStatus } from "../services/caption-matcher.js"
+import { ensureAutomaticStock } from "../services/automatic-stock.js"
 import {
   startStockJob,
   getStockJob,
@@ -90,6 +91,12 @@ router.post(
         )
       )
   })
+)
+router.post(
+  "/:assetId/auto-stock",
+  wrap(async (req, res) =>
+    res.json(await ensureAutomaticStock(req.params.assetId, req.body.settings))
+  )
 )
 router.get(
   "/:assetId/stock-job",

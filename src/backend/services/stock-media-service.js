@@ -54,6 +54,24 @@ const publicResult = (result) => ({
   url: result.url,
   provider: result.provider
 })
+export function pexelsTitle(item, kind) {
+  if (kind === "image" && item.alt) return plain(item.alt)
+  try {
+    const url = new URL(item.url)
+    if (!["www.pexels.com", "pexels.com"].includes(url.hostname))
+      throw new Error("Unknown source")
+    const slug = url.pathname.split("/").filter(Boolean).at(-1)
+    return (
+      plain(
+        decodeURIComponent(slug)
+          .replace(/-?\d+$/, "")
+          .replaceAll("-", " ")
+      ) || "Pexels video " + item.id
+    )
+  } catch {
+    return "Pexels " + kind + " " + item.id
+  }
+}
 export function commonsResults(data) {
   return Object.values(data.query?.pages ?? {}).flatMap((page) => {
     const info = page.imageinfo?.[0],
@@ -89,7 +107,12 @@ export function commonsResults(data) {
     ]
   })
 }
-export async function searchStock(query, provider = "commons", kind = "video") {
+export async function searchStock(
+  query,
+  provider = "commons",
+  kind = "video",
+  externalSignal
+) {
   if (typeof query !== "string" || !query.trim() || query.length > 100)
     throw createHttpError(400, "Enter a stock search of 1–100 characters.")
   if (
@@ -122,7 +145,12 @@ export async function searchStock(query, provider = "commons", kind = "video") {
     })
     const response = await fetch(
       "https://commons.wikimedia.org/w/api.php?" + params,
-      { headers: { "User-Agent": agent }, signal: AbortSignal.timeout(20000) }
+      {
+        headers: { "User-Agent": agent },
+        signal: externalSignal
+          ? AbortSignal.any([externalSignal, AbortSignal.timeout(20000)])
+          : AbortSignal.timeout(20000)
+      }
     )
     if (!response.ok)
       throw createHttpError(
@@ -154,7 +182,9 @@ export async function searchStock(query, provider = "commons", kind = "video") {
           Authorization: config.broll.pexelsApiKey,
           "User-Agent": agent
         },
-        signal: AbortSignal.timeout(20000)
+        signal: externalSignal
+          ? AbortSignal.any([externalSignal, AbortSignal.timeout(20000)])
+          : AbortSignal.timeout(20000)
       }
     )
     if (!response.ok)
@@ -176,7 +206,8 @@ export async function searchStock(query, provider = "commons", kind = "video") {
         if (!allowedMediaUrl(file)) return []
         return [
           {
-            title: query.trim() + " · " + item.id,
+            title: pexelsTitle(item, kind),
+            description: pexelsTitle(item, kind),
             mediaUrl: file,
             thumbnail: kind === "video" ? item.image : item.src?.medium,
             kind,

@@ -14,7 +14,8 @@ import {
   commonsResults,
   stockResult,
   searchStock,
-  downloadStock
+  downloadStock,
+  pexelsTitle
 } from "../src/backend/services/stock-media-service.js"
 
 test("stock downloads accept only known HTTPS media hosts", () => {
@@ -39,6 +40,26 @@ test("stock downloads accept only known HTTPS media hosts", () => {
     true
   )
   assert.throws(() => stockResult("an-arbitrary-URL"), /expired/)
+})
+test("Pexels clips are described by their actual titles, never relabelled as the search query", () => {
+  assert.equal(
+    pexelsTitle(
+      {
+        id: 123,
+        url: "https://www.pexels.com/video/woman-applying-skin-cream-123/"
+      },
+      "video"
+    ),
+    "woman applying skin cream"
+  )
+  assert.equal(
+    pexelsTitle({ id: 123, url: "https://www.pexels.com/video/123/" }, "video"),
+    "Pexels video 123"
+  )
+  assert.equal(
+    pexelsTitle({ id: 123, url: "https://attacker.example/not-real" }, "video"),
+    "Pexels video 123"
+  )
 })
 test("curated search finds actual topic matches and requires the current free license", async () => {
   assert.equal(

@@ -108,7 +108,8 @@ export function normalizeEditSettings(input = {}, media = {}) {
     "captions",
     "motion",
     "colorGrade",
-    "voiceCleanup"
+    "voiceCleanup",
+    "autoStock"
   ]) {
     if (input[key] !== undefined && typeof input[key] !== "boolean")
       fail(key + " must be true or false.")

@@ -17,6 +17,7 @@ export function Toggle({ label, hint, checked, onChange, disabled }) {
       </span>
       <input
         type="checkbox"
+        aria-label={label}
         checked={checked}
         disabled={disabled}
         onChange={(event) => onChange(event.target.checked)}

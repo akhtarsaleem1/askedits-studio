@@ -33,65 +33,25 @@ export default function VisualsPanel() {
     setSettings,
     setAsset,
     setError,
-    setNotice
+    setNotice,
+    stockJob,
+    stockLoading: finding,
+    findFootage,
+    cancelStock
   } = useStudio()
   const [query, setQuery] = useState("")
-  const [provider, setProvider] = useState("mixkit")
+  const [provider, setProvider] = useState(
+    capabilities?.stock?.pexels ? "pexels" : "mixkit"
+  )
   const [kind, setKind] = useState("video")
   const [results, setResults] = useState([])
   const [working, setWorking] = useState(false)
   const [stockNote, setStockNote] = useState("")
-  const [stockJob, setStockJob] = useState(null)
-  const [finding, setFinding] = useState(false)
-  const [stockRefresh, setStockRefresh] = useState(0)
   const uploadRef = useRef(null)
   const stockRef = useRef(null)
   const mounted = useRef(true)
   const activeProject = useRef(asset?.assetId)
   activeProject.current = asset?.assetId
-  useEffect(() => {
-    const id = asset?.assetId
-    if (!id) return
-    const initialIds = new Set(
-      (asset.visualAssets ?? []).map((visual) => visual.id)
-    )
-    let stopped = false,
-      timer
-    setStockJob(null)
-    const poll = async () => {
-      try {
-        const job = await api("/" + id + "/stock-job")
-        if (stopped) return
-        setStockJob(job)
-        if (job?.status === "running") timer = setTimeout(poll, 1000)
-        else if (job) {
-          const { asset: fresh } = await api("/" + id + "/workspace")
-          if (stopped) return
-          setAsset((previous) =>
-            previous?.assetId === id
-              ? { ...previous, visualAssets: fresh.visualAssets }
-              : previous
-          )
-          if (
-            (fresh.visualAssets ?? []).some(
-              (visual) => !initialIds.has(visual.id)
-            )
-          )
-            setSettings((previous) => ({
-              ...previous,
-              visualRevision: previous.visualRevision + 1
-            }))
-        }
-      } catch (error) {
-        if (!stopped) setStockNote(error.message)
-      }
-    }
-    poll()
-    return () => {
-      stopped = true
-      clearTimeout(timer)
-    }
-  }, [asset?.assetId, stockRefresh])
   useEffect(() => {
     mounted.current = true
     const id = asset?.assetId
@@ -123,29 +83,6 @@ export default function VisualsPanel() {
   const library = asset?.visualAssets ?? []
   const duration =
     plan?.summary.outputDurationSec ?? asset?.media?.durationSec ?? 0
-  async function findFootage() {
-    setFinding(true)
-    const id = asset.assetId
-    try {
-      const job = await api(
-        "/" + id + "/stock-job",
-        jsonRequest({ settings, provider })
-      )
-      if (!mounted.current || activeProject.current !== id) return
-      setStockJob(job)
-      setSettings((previous) => ({
-        ...previous,
-        visualMode: "captions",
-        transition: "auto",
-        visualRevision: previous.visualRevision + 1
-      }))
-      setStockRefresh((value) => value + 1)
-    } catch (error) {
-      setError(error.message)
-    } finally {
-      setFinding(false)
-    }
-  }
   function place(visual) {
     if (settings.visualMode === "captions") {
       setSettings((previous) => ({
@@ -286,6 +223,7 @@ export default function VisualsPanel() {
     setSettings((previous) => ({
       ...previous,
       visualMode: "manual",
+      autoStock: false,
       visuals: library.slice(0, count).map((visual, index) => ({
         assetId: visual.id,
         startSec: Math.round((step * (index + 1) - length / 2) * 100) / 100,
@@ -309,6 +247,7 @@ export default function VisualsPanel() {
       captionPosition: "middle",
       sfx: "punchy",
       visualMode: "manual",
+      autoStock: false,
       removeBackground: capabilities?.personMatte?.available === true,
       visuals: referencePlacements(cards, library, duration)
     }))
@@ -414,6 +353,7 @@ export default function VisualsPanel() {
               setSettings((previous) => ({
                 ...previous,
                 visualMode: "manual",
+                autoStock: false,
                 visuals: (plan?.visuals ?? []).map(
                   ({
                     assetId,
@@ -586,6 +526,21 @@ export default function VisualsPanel() {
       </div>
       <section className="internet-footage">
         <strong>Real footage from the internet</strong>
+        <Toggle
+          label="Automatic Pexels footage"
+          hint={
+            capabilities?.stock?.pexels
+              ? "Automatically finds video when captions are ready or edited, then syncs the timing and transitions."
+              : "Connect a Pexels server key to enable automatic footage."
+          }
+          checked={settings.autoStock}
+          disabled={!capabilities?.stock?.pexels}
+          onChange={(value) => {
+            change("autoStock", value)
+            if (!value && stockJob?.automatic && stockJob.status === "running")
+              cancelStock()
+          }}
+        />
         <p className="control-hint">
           Download up to 4 relevant video clips, then sync them to your
           captions. Your uploaded video stays on this computer.
@@ -613,7 +568,7 @@ export default function VisualsPanel() {
             stockJob?.status === "running" ||
             library.length >= 24
           }
-          onClick={findFootage}
+          onClick={() => findFootage(provider)}
         >
           {finding || stockJob?.status === "running" ? (
             <Loader2 size={15} className="spin" />
@@ -622,41 +577,27 @@ export default function VisualsPanel() {
           )}
           Find &amp; add internet B-roll
         </button>
-        {stockJob && (
-          <div className="stock-note" role="status">
-            <p>{stockJob.message}</p>
-            {stockJob.status === "running" && (
-              <>
-                <small>
-                  {stockJob.imported.length} clips added · {stockJob.completed}/
-                  {stockJob.total || "…"} topics checked
-                </small>
-                <button
-                  className="text-button"
-                  onClick={async () => {
-                    try {
-                      await api("/" + asset.assetId + "/stock-job/cancel", {
-                        method: "POST"
-                      })
-                    } catch (error) {
-                      setError(error.message)
-                    }
-                  }}
-                >
-                  Cancel downloads
-                </button>
-              </>
-            )}
-            {stockJob.warnings?.length > 0 && (
-              <details>
-                <summary>{stockJob.warnings.length} provider notices</summary>
-                {stockJob.warnings.map((warning, i) => (
-                  <p key={i}>{warning}</p>
-                ))}
-              </details>
-            )}
-          </div>
-        )}
+        {stockJob &&
+          (stockJob.status === "running" || stockJob.warnings?.length > 0) && (
+            <div className="stock-note" role="status">
+              {stockJob.status === "running" && (
+                <>
+                  <small>
+                    {stockJob.imported.length} clips added ·{" "}
+                    {stockJob.completed}/{stockJob.total || "…"} topics checked
+                  </small>
+                </>
+              )}
+              {stockJob.warnings?.length > 0 && (
+                <details>
+                  <summary>{stockJob.warnings.length} provider notices</summary>
+                  {stockJob.warnings.map((warning, i) => (
+                    <p key={i}>{warning}</p>
+                  ))}
+                </details>
+              )}
+            </div>
+          )}
         <small className="control-hint">
           No-key collection: coding, business, education, travel, fitness and
           food. Caption topics select clips; preview to review the choices.
