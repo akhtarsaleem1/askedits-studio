@@ -21,7 +21,8 @@ export function stockQueries(plan) {
   const seen = new Set()
   return scenes
     .filter((scene) => {
-      const key = scene.topic === "story" ? scene.searchQuery : scene.topic
+      const key =
+        scene.topic === "story" ? scene.searchQuery : stockSearchQuery(scene)
       if (!scene.searchQuery || seen.has(key)) return false
       seen.add(key)
       return true
@@ -46,7 +47,39 @@ export async function cancelStockJob(assetId) {
   active.get(assetId)?.abort()
   return job
 }
-export async function startStockJob(assetId, input, provider = "mixkit") {
+export const stockSearchQuery = (scene) => {
+  if (scene.topic === "beauty") {
+    if (
+      /\b(cream|creams|lotion|moisturizer|serum|sunscreen)\b/i.test(scene.text)
+    )
+      return "face cream skincare"
+    if (/\b(lipstick|makeup)\b/i.test(scene.text)) return "makeup cosmetics"
+    if (/\bperfume\b/i.test(scene.text)) return "perfume bottle"
+  }
+  return (
+    {
+      beauty: "skincare cosmetics",
+      retail: "shopping store",
+      development: "software programming",
+      business: "business startup",
+      research: "science research",
+      team: "team collaboration",
+      education: "university students",
+      travel: "travel landscape",
+      food: "cooking food",
+      fitness: "fitness workout",
+      nature: "nature forest",
+      finance: "financial planning",
+      innovation: "technology innovation"
+    }[scene.topic] ?? scene.searchQuery.split(" ").slice(0, 3).join(" ")
+  )
+}
+export async function startStockJob(
+  assetId,
+  input,
+  provider = "mixkit",
+  metadata = {}
+) {
   if (!["mixkit", "pexels", "commons"].includes(provider))
     throw createHttpError(400, "Choose a supported stock provider.")
   if (active.has(assetId))
@@ -70,7 +103,7 @@ export async function startStockJob(assetId, input, provider = "mixkit") {
   if ((record.visualAssets?.length ?? 0) >= 24)
     throw createHttpError(409, "The B-roll library is full (24 clips).")
   const settings = normalizeEditSettings(
-    { ...input, visualMode: "captions" },
+    { ...input, visualMode: "captions", preview: false },
     record.media
   )
   if (active.has(assetId) || active.size >= 2)
@@ -84,6 +117,8 @@ export async function startStockJob(assetId, input, provider = "mixkit") {
     id: randomUUID(),
     status: "running",
     provider,
+    automatic: metadata.automatic === true,
+    requestKey: metadata.requestKey ?? null,
     imported: [],
     warnings: [],
     completed: 0,
@@ -107,11 +142,22 @@ export async function startStockJob(assetId, input, provider = "mixkit") {
     const tempRoot = path.resolve(config.upload.storageRoot, ".incoming")
     try {
       const plan = await planTemplateEdit(record, settings)
-      const scenes = stockQueries(plan)
-      if (!scenes.length)
+      if (!stockQueries(plan).length)
         throw new Error(
           "Add or transcribe captions first so the editor can find footage that matches your narration."
         )
+      const scenes = stockQueries(plan).filter(
+        (scene) =>
+          !job.automatic ||
+          !plan.visualDecisions.some(
+            (decision) =>
+              decision.cueId === scene.id &&
+              record.visualAssets?.some(
+                (asset) =>
+                  asset.id === decision.assetId && asset.kind === "video"
+              )
+          )
+      )
       job.total = scenes.length
       await fs.mkdir(tempRoot, { recursive: true })
       let existing = record.visualAssets ?? []
@@ -121,12 +167,16 @@ export async function startStockJob(assetId, input, provider = "mixkit") {
         job.message = "Finding footage: " + scene.topic + "…"
         await save()
         const query =
-          scene.searchQuery + (scene.topic === "story" ? "" : " " + scene.topic)
+          provider === "pexels"
+            ? stockSearchQuery(scene)
+            : scene.searchQuery +
+              (scene.topic === "story" ? "" : " " + scene.topic)
         try {
           const response = await searchStock(
             query.slice(0, 100),
             provider,
-            "video"
+            "video",
+            controller.signal
           )
           const available = response.items
             .map((result) => stockResult(result.id))
