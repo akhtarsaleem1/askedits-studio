@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto"
 import fs from "node:fs/promises"
 import config from "../../../config/default.js"
 import { createHttpError } from "../utils/errors.js"
+import { searchCatalog, mixkitVideoMetadata } from "./stock-catalog.js"
 
 const agent =
   "ASKEditsStudio/2.1 (https://github.com/akhtarsaleem1/askedits-studio)"
@@ -33,7 +34,8 @@ export function allowedMediaUrl(value) {
       [
         "upload.wikimedia.org",
         "images.pexels.com",
-        "videos.pexels.com"
+        "videos.pexels.com",
+        "assets.mixkit.co"
       ].includes(url.hostname) &&
       (!url.port || url.port === "443")
     )
@@ -91,7 +93,7 @@ export async function searchStock(query, provider = "commons", kind = "video") {
   if (typeof query !== "string" || !query.trim() || query.length > 100)
     throw createHttpError(400, "Enter a stock search of 1–100 characters.")
   if (
-    !["commons", "pexels"].includes(provider) ||
+    !["mixkit", "commons", "pexels"].includes(provider) ||
     !["video", "image"].includes(kind)
   )
     throw createHttpError(
@@ -99,7 +101,9 @@ export async function searchStock(query, provider = "commons", kind = "video") {
       "Choose a supported stock provider and media type."
     )
   let matches
-  if (provider === "commons") {
+  if (provider === "mixkit") {
+    matches = kind === "video" ? searchCatalog(query) : []
+  } else if (provider === "commons") {
     const params = new URLSearchParams({
       action: "query",
       format: "json",
@@ -202,9 +206,11 @@ export async function searchStock(query, provider = "commons", kind = "video") {
     items,
     provider,
     note:
-      provider === "commons"
-        ? "Public-domain, CC0, and CC BY results only. Source and license credits are included with exports."
-        : "Stock from Pexels. Review the license and creator before importing."
+      provider === "mixkit"
+        ? "Selected Mixkit footage, downloaded on demand. Free license is rechecked before importing; credits are included with exports. This is a small curated collection, not the full Mixkit library."
+        : provider === "commons"
+          ? "Public-domain, CC0, and CC BY results only. Source and license credits are included with exports."
+          : "Stock from Pexels. Review the license and creator before importing."
   }
 }
 export function stockResult(id) {
@@ -216,11 +222,39 @@ export function stockResult(id) {
     )
   return item
 }
-export async function downloadStock(item, target) {
+export async function downloadStock(item, target, externalSignal) {
   let url = item.mediaUrl
-  const signal = AbortSignal.timeout(60000)
+  const signal = externalSignal
+    ? AbortSignal.any([externalSignal, AbortSignal.timeout(60000)])
+    : AbortSignal.timeout(60000)
   let file
   try {
+    if (item.provider === "mixkit") {
+      // Only curated item pages may be requested; never accept user-supplied URLs.
+      if (
+        !searchCatalog(item.title).some(
+          (clip) => clip.url === item.url && clip.mediaUrl === item.mediaUrl
+        )
+      )
+        throw createHttpError(
+          400,
+          "Choose footage from the curated collection."
+        )
+      const page = await fetch(item.url, {
+        redirect: "error",
+        headers: { "User-Agent": agent },
+        signal
+      })
+      if (!page.ok)
+        throw createHttpError(
+          502,
+          "Could not verify the stock clip's license. Try again later."
+        )
+      const html = await page.text()
+      if (html.length > 2 * 1024 * 1024)
+        throw createHttpError(502, "Stock metadata was too large.")
+      mixkitVideoMetadata(html, item.url)
+    }
     for (let redirects = 0; redirects < 4; redirects++) {
       if (!allowedMediaUrl(url))
         throw createHttpError(400, "This stock media URL is not supported.")

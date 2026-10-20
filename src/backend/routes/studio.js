@@ -38,6 +38,11 @@ import {
 import { registerVisual, publicVisual } from "../services/visual-library.js"
 import { personMatteStatus } from "../services/person-matte.js"
 import { captionMatcherStatus } from "../services/caption-matcher.js"
+import {
+  startStockJob,
+  getStockJob,
+  cancelStockJob
+} from "../services/stock-jobs.js"
 
 const router = express.Router()
 const wrap = (handler) => (req, res, next) =>
@@ -72,6 +77,28 @@ const visualUpload = multer({
       true
     )
 })
+router.post(
+  "/:assetId/stock-job",
+  wrap(async (req, res) => {
+    res
+      .status(202)
+      .json(
+        await startStockJob(
+          req.params.assetId,
+          req.body.settings,
+          req.body.provider ?? "mixkit"
+        )
+      )
+  })
+)
+router.get(
+  "/:assetId/stock-job",
+  wrap(async (req, res) => res.json(await getStockJob(req.params.assetId)))
+)
+router.post(
+  "/:assetId/stock-job/cancel",
+  wrap(async (req, res) => res.json(await cancelStockJob(req.params.assetId)))
+)
 router.get(
   "/stock/search",
   wrap(async (req, res) =>
@@ -114,15 +141,21 @@ router.post(
     try {
       await downloadStock(item, temporary)
       const { provider, author, license, licenseUrl, url } = item
-      res.json({
-        visual: await registerVisual(record, temporary, item.title, {
-          provider,
-          author,
-          license,
-          licenseUrl,
-          url
-        })
+      const visual = await registerVisual(record, temporary, item.title, {
+        provider,
+        author,
+        license,
+        licenseUrl,
+        url
       })
+      if (item.description) {
+        await updateAssetRecord(record.assetId, (current) => {
+          current.visualAssets.find((v) => v.id === visual.id).description =
+            item.description
+        })
+        visual.description = item.description
+      }
+      res.json({ visual })
     } finally {
       await fs.unlink(temporary).catch(() => {})
     }
@@ -204,7 +237,11 @@ router.get(
           captionMatcher,
           cloudTranscription: Boolean(config.ai.groqApiKey),
           templateCount: EDIT_TEMPLATES.length,
-          stock: { commons: true, pexels: Boolean(config.broll.pexelsApiKey) }
+          stock: {
+            mixkit: true,
+            commons: true,
+            pexels: Boolean(config.broll.pexelsApiKey)
+          }
         })
       )
     res.json(await capabilityCache)

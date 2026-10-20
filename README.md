@@ -11,7 +11,7 @@ The workspace has four separate pages, with one task per page:
 | Page                         | What you do                                                                                                                                         |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Projects** · `/projects`   | Upload footage, try the narrated demo, or reopen a saved project.                                                                                   |
-| **Templates** · `/templates` | Browse the seven editing recipes and choose a style.                                                                                                |
+| **Templates** · `/templates` | Browse 13 editing recipes and choose a style.                                                                                                |
 | **Editor** · `/editor`       | Refine the timeline and captions, then render a short 540p preview. Framing, pacing, captions, visuals, and audio each have their own settings tab. |
 | **Exports** · `/exports`     | Review the edit, choose 720p or 1080p, and download MP4, SRT, JSON, and media credits. Revisit earlier renders.                                     |
 
@@ -26,6 +26,12 @@ Navigation preserves the current edit and background renders. Project links incl
 | Clean Interview   | Natural color, restrained captions, optional motion, tighter pauses                                     |
 | Product Launch    | Short shots, crisp color, square framing, rhythmic music                                                |
 | Travel Journal    | Warm color, relaxed movement, soft transitions, vertical framing                                        |
+| Documentary Explainer | Wide presenter, restrained chapter graphics, cinematic music, gentle pace |
+| Startup Pitch | Portrait presenter, kinetic captions, brisk pace, supporting footage and a pulse bed |
+| Tutorial Walkthrough | Longer wide shots, clean subtitles, preserved demonstrations and natural color |
+| News Update | Concise portrait briefing, bold captions, chapter graphics and subtle sound cues |
+| Fitness Reel | Fast portrait montage, stronger contrast, quick slides and energetic music |
+| Food & Lifestyle | Warm 4:5 framing, longer close-ups, soft dissolves and relaxed music |
 
 Every recipe is adjustable. Use blurred fit or a crop with a manual focal point; choose vertical, landscape, square, or portrait output. Edit caption text and source timestamps, import SRT, and choose four caption styles. Audio controls include speech cleanup, source level, three original generated music beds, custom audio upload, and automatic music ducking under speech.
 
@@ -41,11 +47,15 @@ Choose cuts, dissolves, slides, wipes, or flashes in Pacing. Set headline and an
 
 ![Tech Brief final export](docs/images/tech-brief-exports.png)
 
-The stock picker searches Wikimedia Commons without a key, or Pexels with a server-side PEXELS_API_KEY. Only your entered search keywords are sent. Imported files retain source and license metadata in the credits download. Stock access requires an internet connection; provider DNS was unavailable on the development machine, so live search is unverified. Local uploads and the bundled original sample work independently.
+Use **Editor → Visuals → Find & add internet B-roll** to download up to four relevant videos and enable caption-timed placement. Downloads run in the background with progress and cancellation; partial files are removed, completed imports survive navigation/restarts, and repeated runs avoid duplicate source URLs. Your uploaded video stays local. Searches send topic keywords to the selected provider.
+
+The default no-key option is a small, curated collection of ten [Mixkit](https://mixkit.co/free-stock-video/) clips covering coding, business, education, travel, fitness and food. The server rechecks each clip's current [Free Video License](https://mixkit.co/license/#videoFree) before downloading; unavailable or restricted clips are skipped. This is not full-library Mixkit search. Live metadata and media availability were checked, and real clips were downloaded and imported on Windows. Raw stock media is kept in ignored local storage and is not redistributed in this repository.
+
+For wider searches, select Wikimedia Commons (no key) or Pexels (server-side PEXELS_API_KEY and restart). Wikimedia DNS is unavailable on this development computer; its provider errors are shown and other providers work independently. Pexels access requires your own API key. Manual stock search/import remains available. Imported files retain source and license metadata in the export credits. Downloads require internet access and are limited to approved HTTPS hosts, 80 MB per clip and 24 library assets per project.
 
 For a cutout presenter over the graphics, set PYTHON_BIN and run **npm run setup:visuals**, then restart the server and enable **Remove presenter background**. This installs MediaPipe locally and a checksum-verified Google selfie model; footage stays on your computer. The first render prepares a reusable person mask. If your source already has burned captions, enable **Crop existing source captions** and adjust its top/bottom crop while reviewing framing. Cropping removes that part of the image; it does not reconstruct what was underneath.
 
-This preset does not extract another video's footage or soundtrack. Topic cards use transcript keyword heuristics and can be edited. It does not infer arbitrary video styles from a URL or automatically find semantically matching stock footage.
+This preset does not extract another video's footage or soundtrack. Topic cards use transcript keyword heuristics and can be edited. It does not infer arbitrary video styles from a URL.
 
 ## Caption-directed footage and transitions
 
@@ -55,7 +65,7 @@ Describe each asset in **What is in this clip?**. Descriptions save when the fie
 
 Run **npm run setup:matcher**, then restart, to enable the local MiniLM sentence model. It downloads a fixed model revision into ignored storage/models/; inference makes no network requests and no transcript or footage is uploaded. Without the model, the app explicitly uses keyword matching. This computer has the sentence model installed.
 
-If no clip is relevant, the planner keeps the presenter/topic graphic and offers **Find stock for this phrase** with a suggested query. It does not download footage automatically. Provider search still requires a working connection and optional Pexels credentials.
+If no clip is relevant, the planner keeps the presenter/topic graphic and offers **Find stock for this phrase** with a suggested query. The internet B-roll action searches distinct spoken topics, ranks descriptions locally, downloads matching videos, and replans timing. Curated stock may illustrate a general topic rather than the exact named product or person; those decisions are labelled as illustrative stock. Review the preview and freeze the choices for manual adjustments. Without captions, the download job asks you to transcribe or import SRT first.
 
 Matching uses media descriptions, not visual inspection of its frames. Accurate captions and descriptions matter. English is the model's primary language. Imported multiword SRT phrases use estimated word positions; recognized word timings provide more precise synchronization. Automatically selected video snippets begin at their source start and do not loop beyond the clip's available duration. Freeze the choices to pick a different source in-point.
 
