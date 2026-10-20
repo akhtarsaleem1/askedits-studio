@@ -35,8 +35,9 @@ import {
   stockResult,
   downloadStock
 } from "../services/stock-media-service.js"
-import { registerVisual } from "../services/visual-library.js"
+import { registerVisual, publicVisual } from "../services/visual-library.js"
 import { personMatteStatus } from "../services/person-matte.js"
+import { captionMatcherStatus } from "../services/caption-matcher.js"
 
 const router = express.Router()
 const wrap = (handler) => (req, res, next) =>
@@ -164,6 +165,24 @@ router.get(
     res.sendFile(path.resolve(visual.thumbnailPath))
   })
 )
+router.put(
+  "/:assetId/visuals/:visualId",
+  wrap(async (req, res) => {
+    if (
+      typeof req.body.description !== "string" ||
+      req.body.description.length > 500
+    )
+      throw createHttpError(400, "Describe the clip in up to 500 characters.")
+    let visual
+    await updateAssetRecord(req.params.assetId, (record) => {
+      visual = record.visualAssets?.find((v) => v.id === req.params.visualId)
+      if (!visual)
+        throw createHttpError(404, "This library clip was not found.")
+      visual.description = req.body.description.trim()
+    })
+    res.json({ visual: publicVisual(visual, req.params.assetId) })
+  })
+)
 let capabilityCache
 router.get(
   "/capabilities",
@@ -173,17 +192,21 @@ router.get(
         getFFmpegStatus(),
         canRunCommand(config.media.ffprobeBin, ["-version"]),
         getLocalTranscriptionStatus(),
-        personMatteStatus()
-      ]).then(([ffmpeg, ffprobe, transcription, personMatte]) => ({
-        ffmpeg: ffmpeg.available,
-        ffmpegVersion: ffmpeg.version,
-        ffprobe,
-        transcription,
-        personMatte,
-        cloudTranscription: Boolean(config.ai.groqApiKey),
-        templateCount: EDIT_TEMPLATES.length,
-        stock: { commons: true, pexels: Boolean(config.broll.pexelsApiKey) }
-      }))
+        personMatteStatus(),
+        captionMatcherStatus()
+      ]).then(
+        ([ffmpeg, ffprobe, transcription, personMatte, captionMatcher]) => ({
+          ffmpeg: ffmpeg.available,
+          ffmpegVersion: ffmpeg.version,
+          ffprobe,
+          transcription,
+          personMatte,
+          captionMatcher,
+          cloudTranscription: Boolean(config.ai.groqApiKey),
+          templateCount: EDIT_TEMPLATES.length,
+          stock: { commons: true, pexels: Boolean(config.broll.pexelsApiKey) }
+        })
+      )
     res.json(await capabilityCache)
   })
 )

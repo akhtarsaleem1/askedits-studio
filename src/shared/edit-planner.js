@@ -1,5 +1,6 @@
 import { defaultEditSettings, getEditTemplate } from "./edit-templates.js"
 import { referenceCards } from "./reference-sequence.js"
+import { directCaptions, captionScenes } from "./caption-director.js"
 import {
   normalizeVisualSettings,
   transitionDuration,
@@ -306,11 +307,19 @@ export function buildEditPlan({
   silence = {},
   transcript = null,
   hasCustomMusic = false,
-  visualAssets = []
+  visualAssets = [],
+  semanticScores = {},
+  matchingEngine = "keyword-rules"
 }) {
   const settings = normalizeEditSettings(input, media)
   const template = getEditTemplate(settings.templateId)
-  const transitionSeconds = transitionDuration(settings, template)
+  const sourceCaptions =
+    settings.manualCaptions ??
+    transcriptCaptions(transcript, settings.captionStyle)
+  const transitionSeconds =
+    settings.visualMode === "captions" && template.kind === "speech"
+      ? 0
+      : transitionDuration(settings, template)
   const warnings = []
   if (settings.music === "custom" && !hasCustomMusic)
     fail("Upload a music track before choosing custom music.")
@@ -343,10 +352,29 @@ export function buildEditPlan({
         : [{ startSec: settings.startSec, endSec: settings.endSec }]
     if (settings.removeSilence && media.hasAudio && !silence.intervals?.length)
       warnings.push("No pauses detected; the spoken content is preserved.")
-    segments = splitShots(
-      segments,
-      settings.motion && template.zoom > 1 ? template.shotSeconds : 86400
-    )
+    if (settings.visualMode === "captions" && sourceCaptions.length) {
+      const points = captionScenes(
+        kineticCaptions(sourceCaptions),
+        media.durationSec,
+        settings.headline
+      ).map((c) => c.startSec)
+      segments = segments.flatMap((segment) => {
+        const boundaries = [
+          segment.startSec,
+          ...points.filter(
+            (p) => p > segment.startSec + 0.4 && p < segment.endSec - 0.4
+          ),
+          segment.endSec
+        ]
+        return boundaries
+          .slice(1)
+          .map((end, index) => ({ startSec: boundaries[index], endSec: end }))
+      })
+    } else
+      segments = splitShots(
+        segments,
+        settings.motion && template.zoom > 1 ? template.shotSeconds : 86400
+      )
   }
   let outputCursor = 0
   const timed = []
@@ -380,6 +408,24 @@ export function buildEditPlan({
     outputCursor += length - overlap
   }
   if (!timed.length) fail("The selected clip is too short to edit.")
+  const directed =
+    settings.visualMode === "captions"
+      ? directCaptions({
+          captions: remapCaptions(
+            kineticCaptions(sourceCaptions),
+            timed,
+            outputCursor
+          ),
+          assets: visualAssets,
+          duration: outputCursor,
+          headline: settings.headline,
+          semanticScores
+        })
+      : null
+  if (directed && !sourceCaptions.length)
+    warnings.push(
+      "Caption-directed editing needs timed captions. Transcribe the recording or import SRT first."
+    )
   if (settings.preview && outputCursor > 12) {
     const previewShots = timed
       .filter(
@@ -396,9 +442,6 @@ export function buildEditPlan({
     timed.splice(0, timed.length, ...previewShots)
     outputCursor = 12
   }
-  const sourceCaptions =
-    settings.manualCaptions ??
-    transcriptCaptions(transcript, settings.captionStyle)
   const captions = settings.captions
     ? remapCaptions(
         settings.captionStyle === "kinetic"
@@ -419,18 +462,24 @@ export function buildEditPlan({
   const keptDuration = timed.reduce((sum, s) => sum + s.endSec - s.startSec, 0)
   const storyCards =
     settings.layout === "reference"
-      ? referenceCards(captions, outputCursor, settings.headline).map(
-          (card, index) => ({
-            ...card,
-            title: settings.cardTitles[index]?.trim() || card.title
-          })
+      ? (
+          directed?.scenes ??
+          referenceCards(captions, outputCursor, settings.headline)
         )
+          .filter((card) => card.startSec < outputCursor)
+          .map((card, index) => ({
+            ...card,
+            endSec: Math.min(card.endSec, outputCursor),
+            title: settings.cardTitles[index]?.trim() || card.title
+          }))
       : []
   const visualTracks = buildVisualTracks(
-    settings,
-    settings.layout === "reference"
-      ? storyCards.map((c) => ({ outputStartSec: c.startSec }))
-      : timed,
+    directed ? { ...settings, visuals: directed.placements } : settings,
+    settings.visualMode === "captions"
+      ? []
+      : settings.layout === "reference"
+        ? storyCards.map((c) => ({ outputStartSec: c.startSec }))
+        : timed,
     outputCursor,
     visualAssets,
     warnings
@@ -449,6 +498,11 @@ export function buildEditPlan({
     warnings,
     ...visualTracks,
     storyCards,
+    visualDecisions:
+      directed?.decisions
+        .filter((c) => c.startSec < outputCursor)
+        .map((c) => ({ ...c, endSec: Math.min(c.endSec, outputCursor) })) ?? [],
+    matchingEngine: directed ? matchingEngine : null,
     summary: {
       sourceDurationSec: round(range),
       outputDurationSec: round(outputCursor),

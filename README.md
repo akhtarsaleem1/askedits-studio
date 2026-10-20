@@ -47,6 +47,18 @@ For a cutout presenter over the graphics, set PYTHON_BIN and run **npm run setup
 
 This preset does not extract another video's footage or soundtrack. Topic cards use transcript keyword heuristics and can be edited. It does not infer arbitrary video styles from a URL or automatically find semantically matching stock footage.
 
+## Caption-directed footage and transitions
+
+Choose **Editor → Visuals → Sync edit to captions**. The planner follows timed phrases and sentence boundaries, ranks your library clips by their names and descriptions, and inserts relevant footage at the spoken match. Clip order in the library does not decide the sequence. Narration cuts follow phrase boundaries; video entries use slides, stills use dissolves, and related visual entries use clean cuts. Speech stays continuous across those visual transitions.
+
+Describe each asset in **What is in this clip?**. Descriptions save when the field loses focus. Caption, trim and description changes recompute the decisions. The expandable decision list shows the quoted phrase, selected media, entry time, transition, and reason. **Keep these choices and edit manually** freezes the current placements for adjustment.
+
+Run **npm run setup:matcher**, then restart, to enable the local MiniLM sentence model. It downloads a fixed model revision into ignored storage/models/; inference makes no network requests and no transcript or footage is uploaded. Without the model, the app explicitly uses keyword matching. This computer has the sentence model installed.
+
+If no clip is relevant, the planner keeps the presenter/topic graphic and offers **Find stock for this phrase** with a suggested query. It does not download footage automatically. Provider search still requires a working connection and optional Pexels credentials.
+
+Matching uses media descriptions, not visual inspection of its frames. Accurate captions and descriptions matter. English is the model's primary language. Imported multiword SRT phrases use estimated word positions; recognized word timings provide more precise synchronization. Automatically selected video snippets begin at their source start and do not loop beyond the clip's available duration. Freeze the choices to pick a different source in-point.
+
 ## Run locally
 
 Requires Node.js **22.12+** and **FFmpeg 8+** with ffprobe, H.264/AAC encoders, and the ASS subtitle filter. FFmpeg 8 was tested on Windows; CI uses the [BtbN 8.1 Linux build](https://github.com/BtbN/FFmpeg-Builds/releases/tag/latest) with checksum verification. Install fonts with coverage for your caption language.

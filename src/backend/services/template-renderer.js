@@ -7,6 +7,7 @@ import { runCommand } from "../utils/process-runner.js"
 import { createSoundtrack } from "./soundtrack-service.js"
 import { getFFmpegStatus } from "./ffmpeg-runtime.js"
 import { ensurePersonMatte } from "./person-matte.js"
+import { captionSemanticScores } from "./caption-matcher.js"
 import {
   even,
   presenterBox,
@@ -23,14 +24,30 @@ export async function readOptionalJson(filePath) {
   }
 }
 export async function planTemplateEdit(record, settings) {
-  return buildEditPlan({
+  const data = {
     media: record.media,
     settings,
     silence: (await readOptionalJson(record.paths.silenceDetectionFile)) ?? {},
     transcript: await readOptionalJson(record.paths.transcriptFile),
     hasCustomMusic: Boolean(record.music?.path),
     visualAssets: record.visualAssets ?? []
+  }
+  if (settings.visualMode !== "captions") return buildEditPlan(data)
+  const full = buildEditPlan({
+    ...data,
+    settings: { ...settings, preview: false }
   })
+  const match = await captionSemanticScores(
+    full.visualDecisions.map((c) => ({ id: c.cueId, text: c.quote })),
+    record.visualAssets ?? []
+  )
+  const plan = buildEditPlan({
+    ...data,
+    semanticScores: match.scores,
+    matchingEngine: match.engine
+  })
+  if (match.warning) plan.warnings.push(match.warning)
+  return plan
 }
 const n = (value) => Number(value).toFixed(4)
 const assTime = (value) => {
@@ -601,8 +618,12 @@ export async function renderTemplateVideo(
       cwd: directory,
       signal,
       timeoutMs: Math.max(
-        120000,
-        Math.min(1800000, plan.summary.outputDurationSec * 10000)
+        180000,
+        Math.min(
+          1800000,
+          plan.summary.outputDurationSec *
+            (plan.settings.preview ? 15000 : 20000)
+        )
       ),
       onData: (text) => {
         progressBuffer += text

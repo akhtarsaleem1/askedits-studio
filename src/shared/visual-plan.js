@@ -22,10 +22,10 @@ export function normalizeVisualSettings(input, defaults, duration) {
   if (
     input.cardTitles !== undefined &&
     (!Array.isArray(input.cardTitles) ||
-      input.cardTitles.length > 10 ||
+      input.cardTitles.length > 20 ||
       input.cardTitles.some((t) => typeof t !== "string" || t.length > 60))
   )
-    invalid("Use up to 10 chapter titles under 60 characters.")
+    invalid("Use up to 20 chapter titles under 60 characters.")
   if (input.graphics !== undefined && typeof input.graphics !== "boolean")
     invalid("Motion graphics must be true or false.")
   const headline = input.headline ?? defaults.headline
@@ -44,13 +44,21 @@ export function normalizeVisualSettings(input, defaults, duration) {
     sourceCropTop: numeric(input.sourceCropTop, 0, 0, 0.3),
     sourceCropBottom: numeric(input.sourceCropBottom, 0, 0, 0.35),
     cardTitles: input.cardTitles ?? [],
+    visualMode: choose(input.visualMode, "manual", ["manual", "captions"]),
+    visualRevision: numeric(
+      input.visualRevision,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER
+    ),
     transition: choose(input.transition, defaults.transition, [
       "template",
       "cut",
       "dissolve",
       "slide",
       "wipe",
-      "flash"
+      "flash",
+      "auto"
     ]),
     captionPosition: choose(input.captionPosition, defaults.captionPosition, [
       "lower",
@@ -88,14 +96,19 @@ export function normalizeVisualSettings(input, defaults, duration) {
           startSec,
           endSec,
           clipStartSec: numeric(item.clipStartSec, 0, 0, 86400),
-          label: (item.label ?? "").trim()
+          label: (item.label ?? "").trim(),
+          transition: choose(item.transition, "dissolve", [
+            "cut",
+            "slide",
+            "dissolve"
+          ])
         }
       })
       .sort((a, b) => a.startSec - b.startSec)
   }
 }
 export function transitionDuration(settings, template) {
-  return settings.transition === "cut"
+  return ["cut", "auto"].includes(settings.transition)
     ? 0
     : settings.transition === "template"
       ? template.transition
@@ -159,7 +172,18 @@ export function buildVisualTracks(
       .slice(1)
       .map((shot) => ({ timeSec: shot.outputStartSec, type: "whoosh" })),
     ...visuals.flatMap((visual) => [
-      { timeSec: visual.startSec, type: "whoosh" },
+      ...(settings.visualMode === "captions" && visual.transition === "cut"
+        ? []
+        : [
+            {
+              timeSec: visual.startSec,
+              type:
+                visual.transition === "dissolve" &&
+                settings.visualMode === "captions"
+                  ? "click"
+                  : "whoosh"
+            }
+          ]),
       { timeSec: visual.endSec, type: "click" }
     ])
   ]

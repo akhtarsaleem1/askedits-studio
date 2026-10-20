@@ -867,9 +867,11 @@ export default function EditorPage() {
                   <Select
                     label="Scene transition"
                     value={settings.transition}
+                    disabled={settings.visualMode === "captions"}
                     onChange={(value) => change("transition", value)}
                   >
                     <option value="template">Template default</option>
+                    <option value="auto">Auto · per-clip transitions</option>
                     <option value="cut">Clean cut</option>
                     <option value="dissolve">Cross dissolve</option>
                     <option value="slide">Slide</option>

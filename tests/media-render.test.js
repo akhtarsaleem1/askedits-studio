@@ -493,5 +493,63 @@ test(
       Number.isFinite(rms) && rms > -65,
       "The export includes real audible SFX over the otherwise silent source"
     )
+    const synced = await renderTemplateVideo(
+      record,
+      {
+        ...defaultEditSettings("tech-brief"),
+        preview: true,
+        endSec: 8,
+        visualMode: "captions",
+        transition: "auto",
+        music: "none",
+        sourceVolume: 0,
+        manualCaptions: [
+          { startSec: 0.5, endSec: 2.5, text: "Red test visual." },
+          { startSec: 4, endSec: 7, text: "Blue test image." }
+        ]
+      },
+      "test_caption_sync"
+    )
+    const syncedPlan = JSON.parse(await fs.readFile(synced.paths.plan, "utf8"))
+    assert.equal(syncedPlan.visuals.length, 2)
+    assert.equal(syncedPlan.visuals[0].assetId, redId)
+    assert.equal(syncedPlan.visuals[1].assetId, blueId)
+    assert.equal(syncedPlan.visuals[0].transition, "slide")
+    assert.equal(syncedPlan.visuals[1].transition, "cut")
+    for (const [at, channel, threshold] of [
+      [1.4, "VAVG", 200],
+      [5.5, "UAVG", 190]
+    ]) {
+      const frame = await runCommand({
+        command: config.media.ffmpegBin,
+        args: [
+          "-hide_banner",
+          "-ss",
+          String(at),
+          "-i",
+          synced.paths.video,
+          "-vf",
+          "crop=10:10:260:280,signalstats,metadata=mode=print",
+          "-frames:v",
+          "1",
+          "-f",
+          "null",
+          "-"
+        ],
+        timeoutMs: 15000
+      })
+      const value = Number(
+        frame.stderr.match(
+          new RegExp("lavfi.signalstats." + channel + "=([0-9.]+)")
+        )?.[1]
+      )
+      assert.ok(
+        value > threshold,
+        "Caption-selected visual appears at its spoken timing: " +
+          at +
+          " / " +
+          value
+      )
+    }
   }
 )

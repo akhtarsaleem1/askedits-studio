@@ -9,6 +9,8 @@ import { chromium } from "playwright"
 
 const port = Number(process.env.STUDIO_TEST_PORT ?? 18789)
 const base = "http://127.0.0.1:" + port
+const previewTimeout = process.platform === "win32" ? 180000 : 90000
+const exportTimeout = process.platform === "win32" ? 300000 : 120000
 const storage = await fs.mkdtemp(path.join(os.tmpdir(), "askedits-ui-"))
 const output = path.resolve("output/browser")
 await fs.mkdir(output, { recursive: true })
@@ -156,7 +158,7 @@ try {
     .getByText("Preview ready. Review it, then export in full quality.", {
       exact: true
     })
-    .waitFor({ timeout: 90000 })
+    .waitFor({ timeout: previewTimeout })
   await page.waitForFunction(
     () => document.querySelector("video")?.videoWidth > 0,
     null,
@@ -178,7 +180,7 @@ try {
   await nav("Exports").click()
   await page
     .getByRole("link", { name: "Download MP4", exact: true })
-    .waitFor({ timeout: 120000 })
+    .waitFor({ timeout: exportTimeout })
   const url = await page
     .getByRole("link", { name: "Download MP4", exact: true })
     .getAttribute("href")
@@ -263,7 +265,7 @@ try {
     .getByText("Preview ready. Review it, then export in full quality.", {
       exact: true
     })
-    .waitFor({ timeout: 90000 })
+    .waitFor({ timeout: previewTimeout })
   await page.getByRole("button", { name: "Timeline", exact: true }).click()
   assert.equal(await page.locator(".broll-track span").count(), 1)
   assert.ok((await page.locator(".sfx-track span").count()) > 0)
@@ -290,7 +292,7 @@ try {
   await page.getByRole("button", { name: "Export video", exact: true }).click()
   await page
     .getByRole("link", { name: "Download MP4", exact: true })
-    .waitFor({ timeout: 120000 })
+    .waitFor({ timeout: exportTimeout })
   await page.waitForFunction(
     () => document.querySelector("video")?.videoHeight === 1280,
     null,
@@ -356,6 +358,90 @@ try {
     .uncheck()
   checks.push(
     "Reference sequence builder, editable chapters, and source-caption cropping controls"
+  )
+  const descriptionSaved = page.waitForResponse(
+    (r) =>
+      r.request().method() === "PUT" &&
+      /\/visuals\/[a-f0-9]+$/.test(r.url()) &&
+      r.ok()
+  )
+  await page
+    .getByLabel("Describe tech-broll.mp4", { exact: true })
+    .fill("Java Flutter mobile apps and software interface development demo")
+  await page.getByLabel("Describe tech-broll.mp4", { exact: true }).press("Tab")
+  await descriptionSaved
+  await page.getByRole("button", { name: "Captions", exact: true }).click()
+  await page.getByLabel("Import SRT captions", { exact: true }).setInputFiles({
+    name: "caption-sync.srt",
+    mimeType: "text/plain",
+    buffer: Buffer.from(
+      "1\n00:00:00,400 --> 00:00:03,000\nJava Flutter apps.\n\n2\n00:00:06,000 --> 00:00:08,000\nA beach vacation.\n"
+    )
+  })
+  await page
+    .getByRole("button", { name: "Sync edit to captions", exact: true })
+    .click()
+  await page.locator(".caption-decisions summary").click()
+  await page
+    .locator(".caption-decision strong")
+    .filter({ hasText: "tech-broll.mp4" })
+    .first()
+    .waitFor({ timeout: 30000 })
+  assert.equal(
+    await page.getByLabel("B-roll 1 start", { exact: true }).count(),
+    0
+  )
+  await page
+    .getByRole("button", { name: "Find stock for this phrase", exact: true })
+    .first()
+    .click()
+  assert.match(
+    await page.getByLabel("Search stock", { exact: true }).inputValue(),
+    /beach/
+  )
+  await page.locator(".stock-search:not(.chapter-titles) summary").click()
+  await page.waitForFunction(
+    () => document.querySelector(".recipe-banner button")?.disabled === false,
+    null,
+    { timeout: 30000 }
+  )
+  const autoRenderStarted = page.waitForResponse(
+    (r) => r.request().method() === "POST" && r.url().endsWith("/render")
+  )
+  await page
+    .getByRole("button", { name: "Render preview", exact: true })
+    .click()
+  const autoJob = await (await autoRenderStarted).json()
+  await page
+    .getByText("Preview ready. Review it, then export in full quality.", {
+      exact: true
+    })
+    .waitFor({ timeout: previewTimeout })
+  const autoProject = new URL(page.url()).searchParams.get("project")
+  const autoPlan = await page.request
+    .get(
+      base +
+        "/api/studio/" +
+        autoProject +
+        "/renders/" +
+        autoJob.renderId +
+        "/plan"
+    )
+    .then((r) => r.json())
+  assert.equal(autoPlan.settings.visualMode, "captions")
+  assert.equal(autoPlan.settings.transition, "auto")
+  assert.ok(autoPlan.visuals.length >= 1)
+  assert.ok(
+    autoPlan.visualDecisions.some((d) => d.assetName === "tech-broll.mp4")
+  )
+  assert.ok(
+    autoPlan.visualDecisions.some(
+      (d) => d.assetId === null && /beach/i.test(d.quote)
+    )
+  )
+  assert.ok(autoPlan.visuals[0].startSec < 1)
+  checks.push(
+    "Caption-directed clip selection, phrase timing, automatic transitions, saved descriptions, missing-footage search and real rendered preview"
   )
   await nav("Templates").click()
   const draftSaved = page.waitForResponse(
