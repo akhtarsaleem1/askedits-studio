@@ -56,6 +56,103 @@ after(async () => {
   assert.ok(path.basename(directory).startsWith("askedits-media-"))
   await fs.rm(directory, { recursive: true, force: true })
 })
+
+test(
+  "reference composition uses the person mask and crops baked-in caption pixels",
+  { skip: !enabled, timeout: 90000 },
+  async () => {
+    const record = await fixture("person-mask", false)
+    record.media = { ...record.media, width: 320, height: 576, durationSec: 3 }
+    record.paths.optimizedDir = record.paths.rendersDir
+    const mask = path.join(record.paths.optimizedDir, "person-mask-v1.mp4")
+    for (const [filter, target] of [
+      [
+        "color=c=lime:s=320x576:r=30:d=3,drawbox=x=0:y=460:w=320:h=60:color=red:t=fill",
+        record.paths.originalFile
+      ],
+      [
+        "color=c=black:s=288x512:r=15:d=3,drawbox=x=64:y=100:w=160:h=412:color=white:t=fill",
+        mask
+      ]
+    ])
+      await runCommand({
+        command: config.media.ffmpegBin,
+        args: [
+          "-v",
+          "error",
+          "-y",
+          "-f",
+          "lavfi",
+          "-i",
+          filter,
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          target
+        ],
+        timeoutMs: 15000
+      })
+    const result = await renderTemplateVideo(
+      record,
+      {
+        ...defaultEditSettings("tech-brief"),
+        preview: true,
+        endSec: 3,
+        removeBackground: true,
+        sourceCropTop: 0.14,
+        sourceCropBottom: 0.24,
+        music: "none",
+        motion: false,
+        captions: false,
+        graphics: false,
+        sfx: "none"
+      },
+      "masked_reference"
+    )
+    for (const [x, y, kind] of [
+      [6, 650, "background"],
+      [270, 650, "person"],
+      [270, 925, "cropped-caption-area"]
+    ]) {
+      const frame = await runCommand({
+        command: config.media.ffmpegBin,
+        args: [
+          "-hide_banner",
+          "-ss",
+          "1",
+          "-i",
+          result.paths.video,
+          "-vf",
+          `crop=4:4:${x}:${y},signalstats,metadata=mode=print`,
+          "-frames:v",
+          "1",
+          "-f",
+          "null",
+          "-"
+        ],
+        timeoutMs: 15000
+      })
+      const u = Number(
+        frame.stderr.match(/lavfi.signalstats.UAVG=([\d.]+)/)?.[1]
+      )
+      const v = Number(
+        frame.stderr.match(/lavfi.signalstats.VAVG=([\d.]+)/)?.[1]
+      )
+      if (kind === "background")
+        assert.ok(
+          Math.abs(u - 128) < 5 && Math.abs(v - 128) < 5,
+          "Masked source background is replaced"
+        )
+      else
+        assert.ok(
+          u < 90 && v < 90,
+          "The presenter remains green and the baked-in red caption strip is cropped: " +
+            kind
+        )
+    }
+  }
+)
 test(
   "all templates encode valid H.264/AAC videos with the requested shape",
   { skip: !enabled, timeout: 180000 },

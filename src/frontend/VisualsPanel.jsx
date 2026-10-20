@@ -12,6 +12,10 @@ import {
 import { useStudio } from "./StudioContext.jsx"
 import { Select, Toggle } from "./StudioControls.jsx"
 import { api, jsonRequest, formatTime } from "./studio-api.js"
+import {
+  referenceCards,
+  referencePlacements
+} from "../shared/reference-sequence.js"
 
 export default function VisualsPanel() {
   const {
@@ -209,6 +213,26 @@ export default function VisualsPanel() {
       }))
     }))
   }
+  function buildReference() {
+    const cards = referenceCards(
+      plan?.captions ?? [],
+      duration,
+      settings.headline
+    )
+    setSettings((previous) => ({
+      ...previous,
+      layout: "reference",
+      graphics: true,
+      captionStyle: "kinetic",
+      captionPosition: "middle",
+      sfx: "punchy",
+      removeBackground: capabilities?.personMatte?.available === true,
+      visuals: referencePlacements(cards, library, duration)
+    }))
+    setNotice(
+      "Reference sequence built. Review the chapter titles, framing and captions, then render a preview."
+    )
+  }
   function update(index, field, value) {
     change(
       "visuals",
@@ -226,11 +250,98 @@ export default function VisualsPanel() {
       >
         <option value="standard">Full-frame cutaways</option>
         <option value="presenter">Presenter + B-roll</option>
+        <option value="reference">Reference explainer</option>
       </Select>
       <p className="control-hint">
-        Presenter layout keeps your video below the supporting visuals.
-        Backgrounds in your footage stay visible.
+        Reference explainer uses a large presenter, supporting visuals and
+        animated topic cards throughout the edit.
       </p>
+      <button
+        className="quiet-button full-width"
+        disabled={!ready || busy || working}
+        onClick={buildReference}
+      >
+        <WandSparkles size={14} />
+        Build reference sequence
+      </button>
+      {settings.layout === "reference" && (
+        <>
+          <Toggle
+            label="Remove presenter background"
+            hint={
+              capabilities?.personMatte?.available
+                ? "Local person segmentation. The first render prepares a reusable mask."
+                : "Local segmentation runtime is not installed on this server."
+            }
+            checked={settings.removeBackground}
+            onChange={(value) => change("removeBackground", value)}
+            disabled={!capabilities?.personMatte?.available}
+          />
+          <Toggle
+            label="Crop existing source captions"
+            hint="Crops the lower 24% and upper 14% before compositing. Review framing; embedded captions cannot be cleanly undone."
+            checked={settings.sourceCropBottom > 0}
+            onChange={(value) =>
+              setSettings((previous) => ({
+                ...previous,
+                sourceCropTop: value ? 0.14 : 0,
+                sourceCropBottom: value ? 0.24 : 0
+              }))
+            }
+          />
+          <label className="field">
+            <span>Crop top · {Math.round(settings.sourceCropTop * 100)}%</span>
+            <input
+              aria-label="Source crop top"
+              type="range"
+              min="0"
+              max="30"
+              step="1"
+              value={Math.round(settings.sourceCropTop * 100)}
+              onChange={(e) =>
+                change("sourceCropTop", Number(e.target.value) / 100)
+              }
+            />
+          </label>
+          <label className="field">
+            <span>
+              Crop bottom · {Math.round(settings.sourceCropBottom * 100)}%
+            </span>
+            <input
+              aria-label="Source crop bottom"
+              type="range"
+              min="0"
+              max="35"
+              step="1"
+              value={Math.round(settings.sourceCropBottom * 100)}
+              onChange={(e) =>
+                change("sourceCropBottom", Number(e.target.value) / 100)
+              }
+            />
+          </label>
+          <details className="stock-search chapter-titles">
+            <summary>Chapter titles · {plan?.storyCards?.length ?? 0}</summary>
+            {(plan?.storyCards ?? []).map((card, index) => (
+              <label className="field" key={index}>
+                <span>
+                  {formatTime(card.startSec)} · {formatTime(card.endSec)}
+                </span>
+                <input
+                  aria-label={"Chapter " + (index + 1) + " title"}
+                  maxLength={60}
+                  value={settings.cardTitles?.[index] ?? card.title}
+                  onChange={(e) => {
+                    const titles = [...(settings.cardTitles ?? [])]
+                    while (titles.length <= index) titles.push("")
+                    titles[index] = e.target.value
+                    change("cardTitles", titles)
+                  }}
+                />
+              </label>
+            ))}
+          </details>
+        </>
+      )}
       <Toggle
         label="Motion graphics"
         hint="Animated contour background, opening title, and numbered chapters"

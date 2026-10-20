@@ -35,7 +35,7 @@ Drafts, original footage, and export history are stored locally. Reopen recent p
 
 **Tech Brief** takes its visual direction from the [reference Short](https://youtube.com/shorts/JlMzLG-ZFwk): a presenter below supporting visuals, bold lime word captions, numbered sections, and animated contour graphics. See [the implementation notes](docs/reference-style.md) for the observed details and limits.
 
-Choose **Tech Brief → Editor → Visuals**. Upload video or images, or click **Try original motion sample**, then adjust each placement on the edited timeline. B-roll audio is muted so narration continues. The library supports 24 assets per project (80 MB each), with up to 12 placements. Set a video source in-point, label each visual, or use auto-place to spread clips across the edit. Images fit inside the visual panel; videos fill it.
+Choose **Tech Brief → Editor → Visuals → Build reference sequence**. The corrected layout keeps the presenter large and creates topic cards across the full edit, rather than leaving the visual panel empty after the opening. Chapter titles are editable. Upload video or images, or click **Try original motion sample**, then adjust each placement on the edited timeline. B-roll audio is muted so narration continues. The library supports 24 assets per project (80 MB each), with up to 12 placements. Set a video source in-point, label each visual, or use auto-place to spread clips across the edit. Images fit inside the visual panel; videos fill it.
 
 Choose cuts, dissolves, slides, wipes, or flashes in Pacing. Set headline and animated graphics in Visuals, word captions in Captions, and original synthesized whoosh/impact/click cues in Audio. Preview and final export use the same plan. Exports include a poster and media credits.
 
@@ -43,7 +43,9 @@ Choose cuts, dissolves, slides, wipes, or flashes in Pacing. Set headline and an
 
 The stock picker searches Wikimedia Commons without a key, or Pexels with a server-side PEXELS_API_KEY. Only your entered search keywords are sent. Imported files retain source and license metadata in the credits download. Stock access requires an internet connection; provider DNS was unavailable on the development machine, so live search is unverified. Local uploads and the bundled original sample work independently.
 
-This preset does not extract another video's footage or soundtrack. Presenter backgrounds remain visible; automatic person cutout and automatic reference-video analysis are outside this release.
+For a cutout presenter over the graphics, set PYTHON_BIN and run **npm run setup:visuals**, then restart the server and enable **Remove presenter background**. This installs MediaPipe locally and a checksum-verified Google selfie model; footage stays on your computer. The first render prepares a reusable person mask. If your source already has burned captions, enable **Crop existing source captions** and adjust its top/bottom crop while reviewing framing. Cropping removes that part of the image; it does not reconstruct what was underneath.
+
+This preset does not extract another video's footage or soundtrack. Topic cards use transcript keyword heuristics and can be edited. It does not infer arbitrary video styles from a URL or automatically find semantically matching stock footage.
 
 ## Run locally
 

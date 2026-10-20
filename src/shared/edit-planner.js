@@ -1,4 +1,5 @@
 import { defaultEditSettings, getEditTemplate } from "./edit-templates.js"
+import { referenceCards } from "./reference-sequence.js"
 import {
   normalizeVisualSettings,
   transitionDuration,
@@ -416,9 +417,20 @@ export function buildEditPlan({
       "This source has no audio. A silent audio track or your selected music will be added."
     )
   const keptDuration = timed.reduce((sum, s) => sum + s.endSec - s.startSec, 0)
+  const storyCards =
+    settings.layout === "reference"
+      ? referenceCards(captions, outputCursor, settings.headline).map(
+          (card, index) => ({
+            ...card,
+            title: settings.cardTitles[index]?.trim() || card.title
+          })
+        )
+      : []
   const visualTracks = buildVisualTracks(
     settings,
-    timed,
+    settings.layout === "reference"
+      ? storyCards.map((c) => ({ outputStartSec: c.startSec }))
+      : timed,
     outputCursor,
     visualAssets,
     warnings
@@ -429,11 +441,14 @@ export function buildEditPlan({
     templateName: template.name,
     settings,
     dimensions: outputDimensions(media, settings),
+    sourceWidth: media.width,
+    sourceHeight: media.height,
     segments: timed,
     captions,
     sourceCaptions,
     warnings,
     ...visualTracks,
+    storyCards,
     summary: {
       sourceDurationSec: round(range),
       outputDurationSec: round(outputCursor),

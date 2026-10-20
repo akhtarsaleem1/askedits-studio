@@ -19,7 +19,7 @@ export const EDIT_TEMPLATES = [
     grade: { contrast: 1.06, saturation: 1.04, brightness: 0 },
     music: "pulse",
     duration: "full",
-    layout: "presenter",
+    layout: "reference",
     graphics: true,
     sfx: "punchy",
     captionPosition: "middle"
@@ -189,6 +189,10 @@ export function defaultEditSettings(id) {
     sfxVolume: 0.35,
     captionPosition: template.captionPosition ?? "lower",
     transition: "template",
-    visuals: []
+    visuals: [],
+    removeBackground: false,
+    sourceCropTop: 0,
+    sourceCropBottom: 0,
+    cardTitles: []
   }
 }

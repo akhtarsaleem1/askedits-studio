@@ -36,6 +36,7 @@ import {
   downloadStock
 } from "../services/stock-media-service.js"
 import { registerVisual } from "../services/visual-library.js"
+import { personMatteStatus } from "../services/person-matte.js"
 
 const router = express.Router()
 const wrap = (handler) => (req, res, next) =>
@@ -171,12 +172,14 @@ router.get(
       capabilityCache = Promise.all([
         getFFmpegStatus(),
         canRunCommand(config.media.ffprobeBin, ["-version"]),
-        getLocalTranscriptionStatus()
-      ]).then(([ffmpeg, ffprobe, transcription]) => ({
+        getLocalTranscriptionStatus(),
+        personMatteStatus()
+      ]).then(([ffmpeg, ffprobe, transcription, personMatte]) => ({
         ffmpeg: ffmpeg.available,
         ffmpegVersion: ffmpeg.version,
         ffprobe,
         transcription,
+        personMatte,
         cloudTranscription: Boolean(config.ai.groqApiKey),
         templateCount: EDIT_TEMPLATES.length,
         stock: { commons: true, pexels: Boolean(config.broll.pexelsApiKey) }
