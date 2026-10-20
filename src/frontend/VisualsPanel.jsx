@@ -52,6 +52,9 @@ export default function VisualsPanel() {
   useEffect(() => {
     const id = asset?.assetId
     if (!id) return
+    const initialIds = new Set(
+      (asset.visualAssets ?? []).map((visual) => visual.id)
+    )
     let stopped = false,
       timer
     setStockJob(null)
@@ -69,10 +72,15 @@ export default function VisualsPanel() {
               ? { ...previous, visualAssets: fresh.visualAssets }
               : previous
           )
-          setSettings((previous) => ({
-            ...previous,
-            visualRevision: previous.visualRevision + 1
-          }))
+          if (
+            (fresh.visualAssets ?? []).some(
+              (visual) => !initialIds.has(visual.id)
+            )
+          )
+            setSettings((previous) => ({
+              ...previous,
+              visualRevision: previous.visualRevision + 1
+            }))
         }
       } catch (error) {
         if (!stopped) setStockNote(error.message)
