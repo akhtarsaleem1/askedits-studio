@@ -1,6 +1,6 @@
 {
   "name": "com.ask.askedits",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Template-driven video editing studio with real FFmpeg exports, caption editing, and music mixing",
   "keywords": [
     "ask",
@@ -39,9 +39,11 @@
     "test": "node --test tests/*.test.js",
     "test:media": "node scripts/test-media.mjs",
     "test:ui": "node scripts/test-ui.mjs",
-    "setup:visuals": "node scripts/setup-visuals.mjs"
+    "setup:visuals": "node scripts/setup-visuals.mjs",
+    "setup:matcher": "node scripts/setup-matcher.mjs"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "express": "^4.21.2",

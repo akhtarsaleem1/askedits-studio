@@ -384,7 +384,12 @@ export function composeExplainerVideo(graph, plan, basePad, visualInputs) {
       y = presenter
         ? even(h * (portrait ? (reference ? 0.04 : 0.18) : 0.24))
         : 0
-    const enter = Math.min(0.16, length / 4)
+    const transition =
+      plan.settings.transition === "auto" ||
+      plan.settings.visualMode === "captions"
+        ? visual.transition
+        : plan.settings.transition
+    const enter = transition === "cut" ? 0 : Math.min(0.18, length / 4)
     const resize =
       visual.kind === "image"
         ? "format=rgba,scale=" +
@@ -411,20 +416,24 @@ export function composeExplainerVideo(graph, plan, basePad, visualInputs) {
         fixed(length) +
         ",setpts=PTS-STARTPTS,fps=30," +
         resize +
-        ",setsar=1,format=yuva420p,fade=t=in:st=0:d=" +
-        fixed(enter) +
-        ":alpha=1,fade=t=out:st=" +
-        fixed(Math.max(0, length - enter)) +
-        ":d=" +
-        fixed(enter) +
-        ":alpha=1,setpts=PTS+" +
+        ",setsar=1,format=yuva420p" +
+        (enter
+          ? ",fade=t=in:st=0:d=" +
+            fixed(enter) +
+            ":alpha=1,fade=t=out:st=" +
+            fixed(Math.max(0, length - enter)) +
+            ":d=" +
+            fixed(enter) +
+            ":alpha=1"
+          : "") +
+        ",setpts=PTS+" +
         fixed(visual.startSec) +
         "/TB[broll" +
         index +
         "]"
     )
     const animatedX =
-      plan.settings.transition === "slide"
+      transition === "slide"
         ? "'" +
           x +
           "+" +

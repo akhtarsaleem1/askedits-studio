@@ -16,6 +16,10 @@ import {
   referenceCards,
   referencePlacements
 } from "../shared/reference-sequence.js"
+const cueTime = (value) => {
+  const ms = Math.round(value * 1000)
+  return formatTime(ms / 1000) + "." + String(ms % 1000).padStart(3, "0")
+}
 
 export default function VisualsPanel() {
   const {
@@ -38,6 +42,7 @@ export default function VisualsPanel() {
   const [working, setWorking] = useState(false)
   const [stockNote, setStockNote] = useState("")
   const uploadRef = useRef(null)
+  const stockRef = useRef(null)
   const mounted = useRef(true)
   const activeProject = useRef(asset?.assetId)
   activeProject.current = asset?.assetId
@@ -73,6 +78,13 @@ export default function VisualsPanel() {
   const duration =
     plan?.summary.outputDurationSec ?? asset?.media?.durationSec ?? 0
   function place(visual) {
+    if (settings.visualMode === "captions") {
+      setSettings((previous) => ({
+        ...previous,
+        visualRevision: previous.visualRevision + 1
+      }))
+      return
+    }
     const startSec = settings.visuals.length
       ? settings.visuals.at(-1).endSec + 0.5
       : Math.min(1.8, duration / 4)
@@ -204,6 +216,7 @@ export default function VisualsPanel() {
       length = Math.min(3, step * 0.8)
     setSettings((previous) => ({
       ...previous,
+      visualMode: "manual",
       visuals: library.slice(0, count).map((visual, index) => ({
         assetId: visual.id,
         startSec: Math.round((step * (index + 1) - length / 2) * 100) / 100,
@@ -226,12 +239,60 @@ export default function VisualsPanel() {
       captionStyle: "kinetic",
       captionPosition: "middle",
       sfx: "punchy",
+      visualMode: "manual",
       removeBackground: capabilities?.personMatte?.available === true,
       visuals: referencePlacements(cards, library, duration)
     }))
     setNotice(
       "Reference sequence built. Review the chapter titles, framing and captions, then render a preview."
     )
+  }
+  function syncCaptions() {
+    if (!plan?.sourceCaptions?.length) {
+      setError("Add timed captions or transcribe the recording first.")
+      return
+    }
+    setSettings((previous) => ({
+      ...previous,
+      layout: "reference",
+      graphics: true,
+      captionStyle: "kinetic",
+      captionPosition: "middle",
+      visualMode: "captions",
+      transition: "auto",
+      cardTitles: [],
+      visualRevision: previous.visualRevision + 1
+    }))
+    setNotice(
+      "Caption sync enabled. Clip choices and transitions now follow your narration. Review the decisions below."
+    )
+  }
+  async function describe(visual, value) {
+    if (value.trim() === (visual.description ?? "")) return
+    const id = asset.assetId
+    setWorking(true)
+    try {
+      const result = await api(
+        "/" + id + "/visuals/" + visual.id,
+        jsonRequest({ description: value }, "PUT")
+      )
+      if (!mounted.current || activeProject.current !== id) return
+      setAsset((previous) => ({
+        ...previous,
+        visualAssets: previous.visualAssets.map((v) =>
+          v.id === visual.id ? result.visual : v
+        )
+      }))
+      setSettings((previous) => ({
+        ...previous,
+        visualRevision: previous.visualRevision + 1
+      }))
+      setNotice("Clip description saved. Caption matching updated.")
+    } catch (error) {
+      setError(error.message)
+    } finally {
+      setWorking(false)
+    }
   }
   function update(index, field, value) {
     change(
@@ -256,6 +317,97 @@ export default function VisualsPanel() {
         Reference explainer uses a large presenter, supporting visuals and
         animated topic cards throughout the edit.
       </p>
+      <button
+        className="primary-button full-width"
+        disabled={!ready || busy || working}
+        onClick={syncCaptions}
+      >
+        <WandSparkles size={14} />
+        Sync edit to captions
+      </button>
+      {settings.visualMode === "captions" && (
+        <section
+          className="caption-decisions"
+          aria-label="Caption editing decisions"
+        >
+          <p className="control-hint">
+            {plan?.matchingEngine === "local-sentence-model"
+              ? "Local sentence matching"
+              : "Keyword matching"}{" "}
+            · follows caption timing and library descriptions. Unmatched phrases
+            keep the presenter. Captions, trims and clip descriptions update the
+            decisions.
+          </p>
+          <button
+            className="text-button"
+            disabled={busy || working}
+            onClick={() =>
+              setSettings((previous) => ({
+                ...previous,
+                visualMode: "manual",
+                visuals: (plan?.visuals ?? []).map(
+                  ({
+                    assetId,
+                    startSec,
+                    endSec,
+                    clipStartSec,
+                    label,
+                    transition
+                  }) => ({
+                    assetId,
+                    startSec,
+                    endSec,
+                    clipStartSec,
+                    label,
+                    transition
+                  })
+                )
+              }))
+            }
+          >
+            Keep these choices and edit manually
+          </button>
+          <details>
+            <summary>
+              Clip and transition decisions ·{" "}
+              {plan?.visualDecisions?.length ?? 0}
+            </summary>
+            {(plan?.visualDecisions ?? []).map((decision) => (
+              <article className="caption-decision" key={decision.cueId}>
+                <small>
+                  {formatTime(decision.startSec)}–{formatTime(decision.endSec)}
+                </small>
+                <blockquote>{decision.quote}</blockquote>
+                <strong>
+                  {decision.assetName ?? "Presenter + topic graphic"}
+                </strong>
+                <small>
+                  {decision.transition} at {cueTime(decision.transitionAtSec)}
+                </small>
+                <p>{decision.reason}</p>
+                <p>{decision.transitionReason}</p>
+                {!decision.assetId && (
+                  <button
+                    className="text-button"
+                    onClick={() => {
+                      setQuery(decision.searchQuery)
+                      if (stockRef.current) {
+                        stockRef.current.open = true
+                        stockRef.current.scrollIntoView({
+                          behavior: "smooth",
+                          block: "nearest"
+                        })
+                      }
+                    }}
+                  >
+                    Find stock for this phrase
+                  </button>
+                )}
+              </article>
+            ))}
+          </details>
+        </section>
+      )}
       <button
         className="quiet-button full-width"
         disabled={!ready || busy || working}
@@ -398,26 +550,41 @@ export default function VisualsPanel() {
         <>
           <div className="visual-library">
             {library.map((visual) => (
-              <div className="visual-library-item" key={visual.id}>
-                <img src={visual.thumbnail} alt="" />
-                <span>
-                  <strong>{visual.originalName}</strong>
-                  <small>
-                    {visual.kind === "image"
-                      ? "Image"
-                      : formatTime(visual.durationSec)}{" "}
-                    · {visual.source?.provider ?? "upload"}
-                  </small>
-                </span>
-                <button
-                  className="icon-button"
-                  aria-label={"Place " + visual.originalName}
-                  title="Add to timeline"
-                  disabled={busy}
-                  onClick={() => place(visual)}
-                >
-                  <Plus size={16} />
-                </button>
+              <div className="visual-library-entry" key={visual.id}>
+                <div className="visual-library-item">
+                  <img src={visual.thumbnail} alt="" />
+                  <span>
+                    <strong>{visual.originalName}</strong>
+                    <small>
+                      {visual.kind === "image"
+                        ? "Image"
+                        : formatTime(visual.durationSec)}{" "}
+                      · {visual.source?.provider ?? "upload"}
+                    </small>
+                  </span>
+                  <button
+                    className="icon-button"
+                    aria-label={"Place " + visual.originalName}
+                    title="Add to timeline"
+                    disabled={busy}
+                    onClick={() => place(visual)}
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+                <label className="visual-description">
+                  <span>What is in this clip?</span>
+                  <textarea
+                    aria-label={"Describe " + visual.originalName}
+                    key={visual.description ?? ""}
+                    defaultValue={visual.description ?? ""}
+                    maxLength={500}
+                    rows={2}
+                    disabled={busy || working}
+                    onBlur={(event) => describe(visual, event.target.value)}
+                    placeholder="Describe subjects, actions and topics. Saves when you leave this field."
+                  />
+                </label>
               </div>
             ))}
           </div>
@@ -429,68 +596,87 @@ export default function VisualsPanel() {
       )}
       <div className="visual-section-heading">
         <strong>B-roll timing</strong>
-        <span>{settings.visuals.length}/12</span>
+        <span>
+          {settings.visualMode === "captions"
+            ? (plan?.visuals?.length ?? 0)
+            : settings.visuals.length}
+          /12
+        </span>
       </div>
       <p className="control-hint">
-        Times refer to the edited video, after pause cuts. Numbered titles use
-        each clip's label.
+        {settings.visualMode === "captions"
+          ? "Timing follows the spoken phrases. Keep the choices manually to adjust individual placements."
+          : "Times refer to the edited video, after pause cuts. Numbered titles use each clip's label."}
       </p>
-      {settings.visuals.map((visual, index) => (
-        <div className="visual-placement" key={index}>
-          <div>
-            <strong>
-              {String(index + 1).padStart(2, "0")} ·{" "}
-              {library.find((item) => item.id === visual.assetId)
-                ?.originalName ?? "B-roll"}
-            </strong>
-            <button
-              className="icon-button"
-              aria-label={"Remove B-roll " + (index + 1)}
+      {settings.visualMode !== "captions" &&
+        settings.visuals.map((visual, index) => (
+          <div className="visual-placement" key={index}>
+            <div>
+              <strong>
+                {String(index + 1).padStart(2, "0")} ·{" "}
+                {library.find((item) => item.id === visual.assetId)
+                  ?.originalName ?? "B-roll"}
+              </strong>
+              <button
+                className="icon-button"
+                aria-label={"Remove B-roll " + (index + 1)}
+                disabled={busy}
+                onClick={() =>
+                  change(
+                    "visuals",
+                    settings.visuals.filter((_, i) => i !== index)
+                  )
+                }
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <input
+              aria-label={"B-roll " + (index + 1) + " label"}
+              value={visual.label}
+              maxLength={80}
               disabled={busy}
-              onClick={() =>
-                change(
-                  "visuals",
-                  settings.visuals.filter((_, i) => i !== index)
-                )
-              }
-            >
-              <X size={14} />
-            </button>
+              onChange={(event) => update(index, "label", event.target.value)}
+            />
+            <div className="visual-timing-fields">
+              {[
+                { key: "startSec", name: "Start" },
+                { key: "endSec", name: "End" },
+                { key: "clipStartSec", name: "Source in" }
+              ].map((field) => (
+                <label className="field" key={field.key}>
+                  <span>{field.name} · sec</span>
+                  <input
+                    aria-label={
+                      "B-roll " + (index + 1) + " " + field.name.toLowerCase()
+                    }
+                    type="number"
+                    min={0}
+                    step={0.1}
+                    value={visual[field.key]}
+                    disabled={busy}
+                    onChange={(event) =>
+                      update(index, field.key, Number(event.target.value))
+                    }
+                  />
+                </label>
+              ))}
+            </div>
+            {settings.transition === "auto" && (
+              <Select
+                label={"B-roll " + (index + 1) + " transition"}
+                value={visual.transition ?? "dissolve"}
+                disabled={busy}
+                onChange={(value) => update(index, "transition", value)}
+              >
+                <option value="cut">Clean cut</option>
+                <option value="dissolve">Dissolve</option>
+                <option value="slide">Slide</option>
+              </Select>
+            )}
           </div>
-          <input
-            aria-label={"B-roll " + (index + 1) + " label"}
-            value={visual.label}
-            maxLength={80}
-            disabled={busy}
-            onChange={(event) => update(index, "label", event.target.value)}
-          />
-          <div className="visual-timing-fields">
-            {[
-              { key: "startSec", name: "Start" },
-              { key: "endSec", name: "End" },
-              { key: "clipStartSec", name: "Source in" }
-            ].map((field) => (
-              <label className="field" key={field.key}>
-                <span>{field.name} · sec</span>
-                <input
-                  aria-label={
-                    "B-roll " + (index + 1) + " " + field.name.toLowerCase()
-                  }
-                  type="number"
-                  min={0}
-                  step={0.1}
-                  value={visual[field.key]}
-                  disabled={busy}
-                  onChange={(event) =>
-                    update(index, field.key, Number(event.target.value))
-                  }
-                />
-              </label>
-            ))}
-          </div>
-        </div>
-      ))}
-      <details className="stock-search">
+        ))}
+      <details className="stock-search" ref={stockRef}>
         <summary>
           <Search size={14} />
           Find stock media

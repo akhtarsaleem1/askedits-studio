@@ -15,6 +15,7 @@ export function publicVisual(item, projectId) {
     height: item.height,
     durationSec: item.durationSec,
     source: item.source,
+    description: item.description ?? "",
     thumbnail: "/api/studio/" + projectId + "/visuals/" + item.id + "/thumbnail"
   }
 }
@@ -92,6 +93,7 @@ export async function registerVisual(
     const item = {
       id,
       originalName: path.basename(originalName).slice(0, 160),
+      description: "",
       kind: image ? "image" : "video",
       width: stream.width,
       height: stream.height,

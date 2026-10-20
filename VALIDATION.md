@@ -3,7 +3,7 @@
 ## Verified locally
 
 - Windows, Node.js 24.13.1, FFmpeg/ffprobe 8.0.1, Chrome, and Python 3.13.
-- **25 unit and API tests passed**, including deterministic planning, preview/final consistency, silence removal, caption retiming, Unicode SRT, invalid inputs, concurrent chunks, and HTTP errors.
+- **30 unit and API tests passed**, including deterministic planning, preview/final consistency, silence removal, caption retiming, Unicode SRT, invalid inputs, concurrent chunks, and HTTP errors.
 - **5 media integration tests passed**: all seven template recipes encoded valid fast-start H.264/AAC MP4s with the planned dimensions and duration; silent video with music and burned captions; pause cuts and retimed SRT; actual 1920×1080 export; HTTP upload/preparation/waveform/plan/render/download/cancel workflow.
 - **Browser workflow passed** using the narrated demo: upload and preparation, template selection, manual SRT import and editing, square framing, music, a real 540p preview, a final 720p export, MP4 and SRT downloads, saved settings after refresh, recent projects, stale-render detection, and 390px mobile layout without horizontal overflow. No JavaScript exceptions.
 - **Local automatic captions verified separately** on the 22.6-second narrated demo using Faster-Whisper tiny on CPU: 43 words were returned, then retimed and burned into a 12-second Creator Punch preview. Transcript accuracy still requires review.
@@ -41,3 +41,11 @@ A new media regression test samples encoded pixels to verify that a synthetic pe
 MediaPipe 0.10.35 and Google's square selfie model were separately tested locally on the user's actual portrait recording. A complete 1080×1920 export was reviewed at representative positions throughout its 53.4-second duration. That private footage and its review images are ignored and are not published in the repository. Segmentation can have soft edges or include a chair; review the result. Cropping is adjustable and can remove wanted image content.
 
 The browser check also exercises the reference sequence builder, editable chapters, and crop controls. Live stock access remains outside these offline checks.
+
+## Caption-directed editing
+
+Five new planner tests cover subject-based selection independent of library order, exact spoken anchors, caption retiming and subject edits, exclusion of unrelated footage, sentence-score paraphrase matching, retiming after silence cuts, and identical preview/final decisions. The existing media integration case additionally renders automatically selected clips and samples encoded red/blue pixels at their caption-aligned times.
+
+Local sentence matching was separately verified with the pinned MiniLM model: the introduction's company portfolio image enters at “ASK Envisionary” and the app grid at “Java and Flutter.” Unsupported topics retain the presenter rather than reusing unrelated images. Private clips and outputs remain ignored. CI tests keyword matching and deterministic sentence-score fixtures; it does not download model weights.
+
+The browser workflow covers saved clip descriptions, switching to caption sync, decision explanations, a missing-footage query, and a real caption-directed preview. Media and browser checks run sequentially to avoid multiple full video exports competing for resources.

@@ -193,6 +193,8 @@ export function defaultEditSettings(id) {
     removeBackground: false,
     sourceCropTop: 0,
     sourceCropBottom: 0,
-    cardTitles: []
+    cardTitles: [],
+    visualMode: "manual",
+    visualRevision: 0
   }
 }

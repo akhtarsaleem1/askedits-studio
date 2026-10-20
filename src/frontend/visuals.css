@@ -6,6 +6,65 @@
 .visuals-panel .field input {
   width: 100%;
 }
+.visual-description {
+  display: grid;
+  gap: 6px;
+  font-size: 10px;
+  color: #abbc9c;
+  margin: 7px 2px 11px;
+}
+.visual-description textarea {
+  resize: vertical;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  background: #11180e;
+  color: #eef3e8;
+  border: 1px solid #38482c;
+  border-radius: 4px;
+  padding: 8px;
+  font: inherit;
+  line-height: 1.5;
+}
+.caption-decisions {
+  margin: 15px 0;
+  padding: 12px;
+  border: 1px solid #465d36;
+  border-radius: 6px;
+  min-width: 0;
+}
+.caption-decisions summary {
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.caption-decision {
+  padding: 12px 0;
+  border-top: 1px solid #34402d;
+  overflow-wrap: anywhere;
+}
+.caption-decision small {
+  display: block;
+  font-size: 10px;
+  color: #a8bb95;
+  margin: 5px 0;
+}
+.caption-decision strong {
+  display: block;
+  font-size: 11px;
+}
+.caption-decision blockquote {
+  margin: 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #e6eddf;
+}
+.caption-decision p {
+  font-size: 10px;
+  line-height: 1.6;
+  color: #a8bb95;
+  margin: 6px 0;
+}
 .visual-section-heading {
   display: flex;
   justify-content: space-between;
@@ -184,7 +243,11 @@
   border: 1px solid #364b36;
   border-radius: 4px;
 }
-.broll-track > div, .sfx-track > div { flex: 1; min-width: 0; }
+.broll-track > div,
+.sfx-track > div {
+  flex: 1;
+  min-width: 0;
+}
 .broll-track > div > span {
   position: absolute;
   top: 3px;
